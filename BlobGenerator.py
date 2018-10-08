@@ -15,28 +15,36 @@ class BlobGenerator(BatchProvider):
 		self.zeros = np.zeros((size), dtype = np.uint8)
 
 	def setup(self):
-		print "setup called"
+		print ('BlobGenerator setup() called')
+
+		# self.provides(
+		#    gp.ArrayKey('BLOBS'),
+		# 	gp.ArraySpec(
+		# 		roi=gp.Roi((0, 0), (self.size, self.size)),
+		# 		voxel_size=(1, 1)))
 
 		self.provides(
-		   gp.ArrayKey('RAW'),
+			gp.ArrayKey('LABELS'),
 			gp.ArraySpec(
-				roi=gp.Roi((0, 0), (100, 100)),
-				voxel_size=(1, 1)))
+				roi=gp.Roi((0, 0, 0), (self.size, self.size, 1)),
+				voxel_size=(1, 1, 1)))
 
 	def provide(self, request):
-		print "provide called"
-
 		batch = gp.Batch()        
+
 		for (array_key, request_spec) in request.array_specs.items():
+
 			array_spec = self.spec[array_key].copy()
 			array_spec.roi = request_spec.roi
+			print array_spec
 
 			input_canvas= np.random.randint(0, 255, (self.size, self.size))
 			filtered_canvas = gaussian_filter(input_canvas, self.sigma)
 			thresholded_canvas = np.where(filtered_canvas > self.threshold, self.ones, self.zeros)
 			labeled_canvas, num_labels = measure.label(thresholded_canvas, connectivity = 1, return_num = True)
+			labeled_canvas = labeled_canvas[:, :, np.newaxis]
+			print 'labeled_canvas: ', labeled_canvas.shape
 
 			batch.arrays[array_key] = gp.Array(labeled_canvas, array_spec)
 
-		print "request:", request
 		return batch
