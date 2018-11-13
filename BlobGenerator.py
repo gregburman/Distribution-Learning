@@ -41,9 +41,10 @@ class BlobGenerator(BatchProvider):
 			# labeled_canvas = labeled_canvas[:, :, np.newaxis] + 1
 			# print "labeled_canvas: ", np.shape(labeled_canvas)
 
-			shape = np.array([self.size, self.size, self.size])
+			shape = np.array([self.size, self.size])
+			# shape = np.array([self.size, self.size, self.size])
 			data = sk.create_segmentation(shape, self.n_objects, self.points_per_skeleton, self.interpolation , self.smoothness)
-			segmentation = data["segmentation"][0]
+			segmentation = data["segmentation"]
 			segmentation = segmentation[:, :, np.newaxis] + 1
 			print "segmentation: ", np.shape(segmentation)
 			# plt.imshow(segmentation)

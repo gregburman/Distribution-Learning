@@ -5,7 +5,7 @@ import numpy as np
 
 if __name__ == "__main__":
 
-	size = 200
+	size = 500
 	
 	gt_labels = gp.ArrayKey('LABELS')
 	gt_affs= gp.ArrayKey('AFFINITIES')
@@ -13,7 +13,7 @@ if __name__ == "__main__":
 	# gt_affs_mask = gp.ArrayKey('AFFINITIES_MASK')
 	# (self, size, n_objects, points_per_skeleton, smoothness, interpolation):
 	
-	blobgenerator = BlobGenerator(size, 100, 10, 3, "linear")
+	blobgenerator = BlobGenerator(size, 20, 5, 2, "linear")
 	addaffinities = gp.AddAffinities(
             [[-1, 0, 0], [0, -1, 0]],
             gt_labels,
