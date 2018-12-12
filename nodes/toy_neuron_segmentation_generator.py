@@ -46,9 +46,9 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 			roi_size = tuple(_ for _ in self.shape)
 		else:
 			roi_size = (1, self.shape[1], self.shape[2])
-
+		
 		self.provides(
-			gp.ArrayKey('LABELS'),
+			gp.ArrayKey('GT_LABELS'),
 			gp.ArraySpec(
 				roi=gp.Roi((0, 0, 0), roi_size),
 				voxel_size=(1, 1, 1)))

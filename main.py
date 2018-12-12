@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 if __name__ == "__main__":
-	
-	labels = gp.ArrayKey('LABELS')
+
+	labels = gp.ArrayKey('GT_LABELS')
 	affinities= gp.ArrayKey('AFFINITIES')
 	joined_affinities= gp.ArrayKey('JOINED_AFFINITIES')
 	realistic_data = gp.ArrayKey('REALISTIC_DATA')
@@ -15,15 +15,15 @@ if __name__ == "__main__":
 	ds1 = {labels: "labels"}
 	ds2 = {joined_affinities: "affmap"}
 	ds3 = {realistic_data: "realism"}
-	
-	shape = np.array ([10, 1000, 1000])  # z, y, x
-	create_labels = ToyNeuronSegmentationGenerator(shape, 0, 30, 8, 3, "linear")
+
+	shape = np.array ([300, 300, 300])  # z, y, x
+	create_labels = ToyNeuronSegmentationGenerator(shape, 0, 50, 5, 3, "linear")
 	add_affinities = gp.AddAffinities([[0, 0, -1], [0, -1, 0]], labels, affinities) 
 	add_joined_affinities = AddJoinedAffinities(affinities, joined_affinities)
 	add_realism = AddRealism(joined_affinities, realistic_data, 0.25, 1)
 	defect_augment = gp.DefectAugment(realistic_data, prob_missing=0.0, prob_deform=0.7, axis=2)
 	intensity_augment = gp.IntensityAugment(realistic_data, 0.9, 1.3, -0.1, 0.3)
-	
+
 	snapshot_labels = gp.Snapshot(ds1, "labels")
 	snapshot_affinities = gp.Snapshot(ds2, "affmaps")
 	snapshot_final = gp.Snapshot(ds3, "final")
@@ -52,12 +52,9 @@ if __name__ == "__main__":
 			realistic_data = req.arrays[realistic_data].data
 			realistic_data = realistic_data.reshape((shape[1]-1,shape[2]-1))
 
-			# f1 = plt.figure(1)
-			# plt.imshow(labels)
-			# f2 = plt.figure(2)
-			# plt.imshow(affinities, alpha=0.5)
-			f3 = plt.figure(3)
-			# plt.imshow(realistic_data, cmap="Greys_r")
+			f1 = plt.figure(1)
 			plt.imshow(realistic_data, cmap="Greys_r", vmin=0, vmax=1)
-			
+			plt.imshow(labels, cmap="tab10", alpha=0.5)
+			f2 = plt.figure(2)
+			plt.imshow(affinities, alpha=0.7)
 			plt.show()

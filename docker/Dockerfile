@@ -1,73 +1,30 @@
 FROM funkey/gunpowder
-#LABEL maintainer jfunke@iri.upc.edu
+LABEL maintainer gburman@ini.uzh.ch
 
-# install dependencies for gunpowder
-ENV MALIS_ROOT=/src/malis
-ENV MALIS_REPOSITORY=https://github.com/TuragaLab/malis.git
-ENV MALIS_REVISION=2206fe01bd2d10c3bc6a861897820731d1ae131b
+# install graph tools
+RUN printf "deb http://downloads.skewed.de/apt/xenial xenial universe" >> /etc/apt/sources.list && \
+	printf "deb-src http://downloads.skewed.de/apt/xenial xenial universe" >> /etc/apt/sources.list
 
-ENV AUGMENT_ROOT=/src/augment
-ENV AUGMENT_REPOSITORY=https://github.com/funkey/augment.git
-ENV AUGMENT_REVISION=4a42b01ccad7607b47a1096e904220729dbcb80a 
+RUN \
+	apt-get -y update && \
+	apt-get -y install python-graph-tool --allow-unauthenticated && \
+	apt-get clean && \
+	rm -rf /var/lib/apt/lists/*
 
-ENV DVISION_ROOT=/src/dvision
-ENV DVISION_REPOSITORY=https://github.com/TuragaLab/dvision.git
-ENV DVISION_REVISION=v0.1.1
+#RUN apt-get source python-graph-tool
+#RUN apt-key adv --keyserver pgp.skewed.de --recv-key 612DEFB798507F25
 
-ENV WATERZ_ROOT=/src/waterz
-ENV WATERZ_REPOSITORY=https://github.com/funkey/waterz
-ENV WATERZ_REVISION=d2bede846391c56a54365c13d5b2f2f4e6db4ecd
+# install skelerator
+RUN git clone https://github.com/nilsec/skelerator.git
+WORKDIR skelerator
+RUN python setup.py install
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        cmake \
-        git \
-        libboost-all-dev \
-        python-dev \
-        python-numpy \
-        python-pip \
-        python-setuptools \
-        python-scipy && \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /distribution-learning
+COPY . /distribution-learning
 
-RUN pip install cython
-WORKDIR ${MALIS_ROOT}
-RUN git clone ${MALIS_REPOSITORY} . && \
-    git checkout ${MALIS_REVISION}
-RUN python setup.py build_ext --inplace
-ENV PYTHONPATH ${MALIS_ROOT}:$PYTHONPATH
-
-WORKDIR ${AUGMENT_ROOT} 
-RUN git clone ${AUGMENT_REPOSITORY} . && \
-    git checkout ${AUGMENT_REVISION}
+# install python library dependencies
 RUN pip install -r requirements.txt
-ENV PYTHONPATH ${AUGMENT_ROOT}:$PYTHONPATH
 
-WORKDIR ${DVISION_ROOT}
-RUN git clone -b ${DVISION_REVISION} --depth 1 ${DVISION_REPOSITORY} .
-RUN pip install -r requirements.txt
-ENV PYTHONPATH ${DVISION_ROOT}:$PYTHONPATH
+EXPOSE 80
 
-WORKDIR ${WATERZ_ROOT}
-RUN git clone ${WATERZ_REPOSITORY} . && \
-    git checkout ${WATERZ_REVISION}
-RUN mkdir -p /.cython/inline
-ENV PYTHONPATH ${WATERZ_ROOT}:$PYTHONPATH
-
-# install gunpowder
-
-# assumes that gunpowder package directory and requirements.txt are in build
-# context (the complementary Makefile ensures that)
-ADD gunpowder /src/gunpowder/gunpowder
-ADD requirements.txt /src/gunpowder/requirements.txt
-WORKDIR /src/gunpowder
-RUN pip install -r requirements.txt
-ENV PYTHONPATH /src/gunpowder:$PYTHONPATH
-
-# test the container
-
-WORKDIR /run
-ADD test_environment.py /run
-
-# run a test
-CMD ["python", "test_environment.py"]
+# CMD ["python", "train.py"]
