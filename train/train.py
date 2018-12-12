@@ -1,7 +1,6 @@
-
-
 from __future__ import print_function
 import sys
+sys.path.append('../')
 from gunpowder import *
 from gunpowder.tensorflow import *
 import malis
@@ -12,10 +11,9 @@ import tensorflow as tf
 import numpy as np
 import logging
 
-from toy_neuron_segmentation_generator import ToyNeuronSegmentationGenerator
-from add_joined_affinities import AddJoinedAffinities
-from add_realism import AddRealism
-
+from nodes import ToyNeuronSegmentationGenerator
+from nodes import AddJoinedAffinities
+from nodes import AddRealism
 
 
 logging.basicConfig(level=logging.INFO)
@@ -31,7 +29,7 @@ def train_until(max_iteration):
 	if trained_until >= max_iteration:
 		return
 
-	with open('train_net_config.json', 'r') as f:
+	with open('train_net.json', 'r') as f:
 		config = json.load(f)
 
 	# define array-keys
@@ -47,7 +45,7 @@ def train_until(max_iteration):
 	gt_scale = ArrayKey('GT_AFFINITIES_SCALE')
 	affs_gradient = ArrayKey('AFFS_GRADIENT')
 
-	voxel_size = Coordinate((40, 4, 4))
+	voxel_size = Coordinate((1, 1, 1))
 	input_size = Coordinate(config['input_shape']) * voxel_size
 	output_size = Coordinate(config['output_shape']) * voxel_size
 
@@ -66,7 +64,6 @@ def train_until(max_iteration):
 	train_pipeline = (
 		ToyNeuronSegmentationGenerator(
 			shape=np.array ([300, 300, 300]),
-			pos=0,
 			n_objects=50,
 			points_per_skeleton=5,
 			smoothness=3,

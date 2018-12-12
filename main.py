@@ -1,7 +1,7 @@
 import gunpowder as gp
-from toy_neuron_segmentation_generator import ToyNeuronSegmentationGenerator
-from add_joined_affinities import AddJoinedAffinities
-from add_realism import AddRealism
+from nodes import ToyNeuronSegmentationGenerator
+from nodes import AddJoinedAffinities
+from nodes import AddRealism
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -14,26 +14,25 @@ if __name__ == "__main__":
 
 	ds1 = {labels: "labels"}
 	ds2 = {joined_affinities: "affmap"}
-	ds3 = {realistic_data: "realism"}
+	ds3 = {realistic_data: "raw"}
 
 	shape = np.array ([300, 300, 300])  # z, y, x
-	create_labels = ToyNeuronSegmentationGenerator(shape, 0, 50, 5, 3, "linear")
+	create_labels = ToyNeuronSegmentationGenerator(shape, 50, 5, 2, "linear")
 	add_affinities = gp.AddAffinities([[0, 0, -1], [0, -1, 0]], labels, affinities) 
 	add_joined_affinities = AddJoinedAffinities(affinities, joined_affinities)
 	add_realism = AddRealism(joined_affinities, realistic_data, 0.25, 1)
-	defect_augment = gp.DefectAugment(realistic_data, prob_missing=0.0, prob_deform=0.7, axis=2)
-	intensity_augment = gp.IntensityAugment(realistic_data, 0.9, 1.3, -0.1, 0.3)
+	# defect_augment = gp.DefectAugment(realistic_data, prob_missing=0.0, prob_deform=0.7, axis=2)
+	# intensity_augment = gp.IntensityAugment(realistic_data, 0.9, 1.3, -0.1, 0.3)
 
-	snapshot_labels = gp.Snapshot(ds1, "labels")
-	snapshot_affinities = gp.Snapshot(ds2, "affmaps")
-	snapshot_final = gp.Snapshot(ds3, "final")
+	snapshot_labels = gp.Snapshot(ds1, "snapshots/labels")
+	snapshot_affinities = gp.Snapshot(ds2, "snapshots/affmap")
+	snapshot_final = gp.Snapshot(ds3, "snapshots/raw")
 
-	pipeline = create_labels + add_affinities + add_joined_affinities + add_realism
-	# pipeline = labels + snapshot_labels + affinities + joined_affinities + snapshot_affinities + realism + snapshot_realism
+	pipeline = create_labels + snapshot_labels + add_affinities + add_joined_affinities + snapshot_affinities + add_realism + snapshot_final
 
 	voxel_size = gp.Coordinate((1, 1, 1))
-	input_size = gp.Coordinate((1, shape[1], shape[2])) * voxel_size
-	output_size = gp.Coordinate((1, shape[1] - 1, shape[2] - 1)) * voxel_size
+	input_size = gp.Coordinate((shape[0], shape[1], shape[2])) * voxel_size
+	output_size = gp.Coordinate((shape[0], shape[1] - 1, shape[2] - 1)) * voxel_size
 
 	request = gp.BatchRequest()
 	request.add(labels, input_size)
@@ -46,15 +45,16 @@ if __name__ == "__main__":
 			req = p.request_batch(request)
 
 			labels = req.arrays[labels].data
-			labels = labels.reshape((shape[1],shape[2]))
+			labels = labels[0].reshape((shape[1],shape[2]))
 			affinities = req.arrays[joined_affinities].data
-			affinities = affinities.reshape((shape[1]-1,shape[2]-1))
+			affinities = affinities[0].reshape((shape[1]-1,shape[2]-1))
 			realistic_data = req.arrays[realistic_data].data
-			realistic_data = realistic_data.reshape((shape[1]-1,shape[2]-1))
+			realistic_data = realistic_data[0].reshape((shape[1]-1,shape[2]-1))
 
 			f1 = plt.figure(1)
-			plt.imshow(realistic_data, cmap="Greys_r", vmin=0, vmax=1)
-			plt.imshow(labels, cmap="tab10", alpha=0.5)
+			plt.imshow(labels, cmap="tab10")		
 			f2 = plt.figure(2)
 			plt.imshow(affinities, alpha=0.7)
+			f3 = plt.figure(3)
+			plt.imshow(realistic_data, cmap="Greys_r", vmin=0, vmax=1)
 			plt.show()
