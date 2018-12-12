@@ -18,6 +18,7 @@ from nodes import AddRealism
 
 logging.basicConfig(level=logging.INFO)
 
+shape = np.array ([300, 300, 300])  # z, y, x
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
 def train_until(max_iteration):
@@ -54,42 +55,43 @@ def train_until(max_iteration):
 
 	# define requests
 	request = BatchRequest()
-	request.add(raw, input_size)
-	request.add(labels, output_size)
+	request.add(labels, input_size)
 	# request.add(labels_mask, output_size)
 	request.add(gt, output_size)
 	request.add(gt_mask, output_size)
 	request.add(gt_scale, output_size)
+	request.add(raw, output_size)
 
 	train_pipeline = (
 		ToyNeuronSegmentationGenerator(
-			shape=np.array ([300, 300, 300]),
+			shape=shape,
 			n_objects=50,
 			points_per_skeleton=5,
-			smoothness=3,
+			smoothness=2,
 			interpolation="linear") + 
 		# RandomProvider()+
-		ElasticAugment(
-			control_point_spacing=[4,40,40],
-			jitter_sigma=[0,2,2],
-			rotation_interval=[0,math.pi/2.0],
-			prob_slip=0.05,
-			prob_shift=0.05,
-			max_misalign=10,
-			subsample=8) +
-		SimpleAugment(transpose_only=[1, 2]) +
-		IntensityAugment(raw, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
+		# ElasticAugment(
+		# 	control_point_spacing=[4,40,40],
+		# 	jitter_sigma=[0,2,2],
+		# 	rotation_interval=[0,math.pi/2.0],
+		# 	prob_slip=0.05,
+		# 	prob_shift=0.05,
+		# 	max_misalign=10,
+		# 	subsample=8) +
+		# SimpleAugment(transpose_only=[1, 2]) +
+		# IntensityAugment(labels, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
 		# GrowBoundary(labels, labels_mask, steps=1, only_xy=True) +
         AddAffinities(
             neighborhood,
             labels=labels,
             affinities=gt,
             affinities_mask=gt_mask) +
+            # affinities=gt) +
 		AddJoinedAffinities(
 			input_affinities=gt,
 			joined_affinities=gt_joined) +
 		AddRealism(
-			affinities = gt,
+			affinities = gt_joined,
 			realistic_data = raw,
 			sp=0.25,
 			sigma=1) +
@@ -97,16 +99,12 @@ def train_until(max_iteration):
 			gt,
 			gt_scale,
 			gt_mask) +
-		# DefectAugment(
-		# 	raw,
-		# 	prob_missing=0.03,
-		# 	prob_low_contrast=0.01,
-		# 	prob_artifact=0.03,
-		# 	artifact_source=artifact_source,
-		# 	artifacts=artifacts,
-		# 	artifacts_mask=artifacts_mask,
-		# 	contrast_scale=0.5,
-		# 	axis=0) +
+		DefectAugment(
+			raw,
+			prob_missing=0.03,
+			prob_low_contrast=0.01,
+			contrast_scale=0.5,
+			axis=0) +
 		IntensityScaleShift(raw, 2,-1) +
 		PreCache(
 			cache_size=40,
@@ -117,8 +115,7 @@ def train_until(max_iteration):
 			loss=config['loss'],
 			inputs={
 				config['raw']: raw,
-				config['gt_affs']: gt,
-				config['affs_loss_weights']: gt_scale,
+				config['gt_affs']: gt
 			},
 			outputs={
 				config['affs']: affs
@@ -129,22 +126,22 @@ def train_until(max_iteration):
 			# summary=config['summary'],
 			log_dir='log',
 			save_every=10000) +
-		# IntensityScaleShift(raw, 0.5, 0.5) +
-		# Snapshot({
-		# 		raw: 'volumes/raw',
-		# 		labels: 'volumes/labels/neuron_ids',
-		# 		gt: 'volumes/gt_affinities',
-		# 		affs: 'volumes/pred_affinities',
-		# 		gt_mask: 'volumes/labels/gt_mask',
-		# 		labels_mask: 'volumes/labels/mask',
-		# 		affs_gradient: 'volumes/affs_gradient'
-		# 	},
-		# 	dataset_dtypes={
-		# 		labels: np.uint64
-		# 	},
-		# 	every=1000,
-		# 	output_filename='batch_{iteration}.hdf',
-		# 	additional_request=snapshot_request) +
+		IntensityScaleShift(raw, 0.5, 0.5) +
+		Snapshot({
+				raw: 'volumes/raw',
+				labels: 'volumes/labels/neuron_ids',
+				gt: 'volumes/gt_affinities',
+				affs: 'volumes/pred_affinities',
+				gt_mask: 'volumes/labels/gt_mask',
+				# labels_mask: 'volumes/labels/mask',
+				affs_gradient: 'volumes/affs_gradient'
+			},
+			dataset_dtypes={
+				labels: np.uint64
+			})+
+			# every=1000,
+			# output_filename='batch_{iteration}.hdf',
+			# additional_request=snapshot_request) +
 		PrintProfilingStats(every=10)
 	)
 
