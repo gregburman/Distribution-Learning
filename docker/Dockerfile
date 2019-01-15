@@ -1,4 +1,4 @@
-FROM funkey/gunpowder
+FROM funkey/gunpowder:v0.3.2
 LABEL maintainer gburman@ini.uzh.ch
 
 # install graph tools
@@ -23,8 +23,8 @@ WORKDIR /distribution-learning
 COPY . /distribution-learning
 
 # install python library dependencies
-RUN pip install -r requirements.txt
+# RUN pip install -r requirements.txt
 
 EXPOSE 80
 
-# CMD ["python", "train.py"]
+CMD ["echo", "complete"]

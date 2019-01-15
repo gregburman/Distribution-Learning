@@ -4,6 +4,9 @@ from nodes import AddJoinedAffinities
 from nodes import AddRealism
 import matplotlib.pyplot as plt
 import numpy as np
+import logging
+
+# logging.basicConfig(level=logging.DEBUG)
 
 if __name__ == "__main__":
 
@@ -16,11 +19,12 @@ if __name__ == "__main__":
 	ds2 = {joined_affinities: "affmas"}
 	ds3 = {realistic_data: "raw"}
 
-	shape = np.array ([300, 300, 300])  # z, y, x
+	shape = np.array ([200, 200, 200])  # z, y, x
 	create_labels = ToyNeuronSegmentationGenerator(shape, 50, 5, 2, "linear")
 	add_affinities = gp.AddAffinities([[0, 0, -1], [0, -1, 0]], labels, affinities) 
 	add_joined_affinities = AddJoinedAffinities(affinities, joined_affinities)
 	add_realism = AddRealism(joined_affinities, realistic_data, 0.25, 1)
+	crop = gp.Crop(key=joined_affinities, fraction_negative=(0.25, 0.25, 0.25), fraction_positive=(0.25, 0.25, 0.25))
 	# defect_augment = gp.DefectAugment(realistic_data, prob_missing=0.0, prob_deform=0.7, axis=2)
 	# intensity_augment = gp.IntensityAugment(realistic_data, 0.9, 1.3, -0.1, 0.3)
 
@@ -28,11 +32,14 @@ if __name__ == "__main__":
 	snapshot_affinities = gp.Snapshot(ds2, "snapshots/affmaps")
 	snapshot_final = gp.Snapshot(ds3, "snapshots/raw")
 
-	pipeline = create_labels + snapshot_labels + add_affinities + add_joined_affinities + snapshot_affinities + add_realism + snapshot_final
+	# pipeline = create_labels + snapshot_labels + add_affinities + add_joined_affinities + snapshot_affinities + add_realism + snapshot_final
+
+	pipeline = create_labels + add_affinities + add_joined_affinities + add_realism + crop
 
 	voxel_size = gp.Coordinate((1, 1, 1))
 	input_size = gp.Coordinate((shape[0], shape[1], shape[2])) * voxel_size
-	output_size = gp.Coordinate((shape[0], shape[1] - 1, shape[2] - 1)) * voxel_size
+	realistic_size = gp.Coordinate((shape[0], shape[1]-1, shape[2]-1)) * voxel_size
+	output_size = gp.Coordinate((shape[0]/2, shape[1]/2, shape[2]/2)) * voxel_size
 
 	print ("input_size: ", input_size)
 	print ("output_size: ", output_size)
@@ -41,7 +48,7 @@ if __name__ == "__main__":
 	request.add(labels, input_size)
 	request.add(affinities, output_size)
 	request.add(joined_affinities, output_size)
-	request.add(realistic_data, output_size)
+	request.add(realistic_data, realistic_size)
 
 	with gp.build(pipeline) as p:
 		for i in range(1):
@@ -50,7 +57,7 @@ if __name__ == "__main__":
 			labels = req.arrays[labels].data
 			labels = labels[0].reshape((shape[1],shape[2]))
 			affinities = req.arrays[joined_affinities].data
-			affinities = affinities[0].reshape((shape[1]-1,shape[2]-1))
+			affinities = affinities[0].reshape((shape[1]/2,shape[2]/2))
 			realistic_data = req.arrays[realistic_data].data
 			realistic_data = realistic_data[0].reshape((shape[1]-1,shape[2]-1))
 
@@ -61,3 +68,4 @@ if __name__ == "__main__":
 			f3 = plt.figure(3)
 			plt.imshow(realistic_data, cmap="Greys_r", vmin=0, vmax=1)
 			plt.show()
+	print "Done"

@@ -12,23 +12,27 @@ class AddRealism(BatchFilter):
 		self.sp = sp
 		self.sigma = sigma
 
+
 	def setup(self):
 		spec = self.spec[self.affinities].copy()
 		self.provides(self.realistic_data, spec)
 
-	def process(self, batch, request):
-		affinities = batch[self.affinities].data
 
-		# mean_map = np.ones(affinities.shape)*0.5
-		# rn = random_noise(mean_map, 's&p', amount=self.sp)
-		# gf = gaussian(rn,self.sigma)
-		# final = affinities + gf
+	def prepare(self, request):
+		request[self.affinities].roi = request[self.realistic_data].roi.copy()
+
+
+	def process(self, batch, request):
+		affinities = batch[self.affinities].data.copy()
 
 		realistic_data = random_noise(affinities, 's&p', amount=self.sp)
 		realistic_data = gaussian(realistic_data,self.sigma)
 		realistic_data = realistic_data*0.7
 
 		spec = self.spec[self.realistic_data].copy()
+		spec.roi = request[self.realistic_data].roi
 		batch.arrays[self.realistic_data] = gp.Array(realistic_data, spec)
 
+		roi = request[self.affinities].roi
+		batch.arrays[self.affinities] = batch.arrays[self.affinities].crop(roi)
 

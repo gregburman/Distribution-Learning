@@ -16,9 +16,9 @@ from nodes import AddJoinedAffinities
 from nodes import AddRealism
 
 
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
 
-shape = np.array ([300, 300, 300])  # z, y, x
+shape = np.array ([200, 200, 200])  # z, y, x
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
 def train_until(max_iteration):
@@ -30,37 +30,39 @@ def train_until(max_iteration):
 	if trained_until >= max_iteration:
 		return
 
-	with open('train_net.json', 'r') as f:
+	with open('train/train_net.json', 'r') as f:
 		config = json.load(f)
 
 	# define array-keys
 	raw = ArrayKey('RAW')
 	labels = ArrayKey('GT_LABELS')
-	# labels_mask = ArrayKey('GT_LABELS_MASK')
-	# artifacts = ArrayKey('ARTIFACTS')
-	# artifacts_mask = ArrayKey('ARTIFACTS_MASK')
-	affs = ArrayKey('PREDICTED_AFFS')
-	gt = ArrayKey('GT_AFFINITIES')
-	gt_joined = ArrayKey('GT_JOINED_AFFINITIES')
-	gt_mask = ArrayKey('GT_AFFINITIES_MASK')
-	gt_scale = ArrayKey('GT_AFFINITIES_SCALE')
-	affs_gradient = ArrayKey('AFFS_GRADIENT')
+	input_affinities = ArrayKey('GT_AFFINITIES')
+	joined_affinities = ArrayKey('GT_JOINED_AFFINITIES')
+	input_affinities_scale = ArrayKey('GT_AFFINITIES_SCALE')
+	pred_affinities = ArrayKey('PREDICTED_AFFS')
+	pred_affinities_gradient = ArrayKey('AFFS_GRADIENT')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate(config['input_shape']) * voxel_size
+	input_size = Coordinate(s+1 for s in config['input_shape']) * voxel_size
+	aff_size = Coordinate(config['input_shape']) * voxel_size
 	output_size = Coordinate(config['output_shape']) * voxel_size
 
 	print ("input_size: ", input_size)
+	print("aff_size",  aff_size)
 	print ("output_size: ", output_size)
 
 	# define requests
 	request = BatchRequest()
+	request.add(raw, aff_size)
 	request.add(labels, input_size)
-	# request.add(labels_mask, output_size)
-	request.add(gt, output_size)
-	request.add(gt_mask, output_size)
-	request.add(gt_scale, output_size)
-	request.add(raw, output_size)
+	request.add(input_affinities, output_size)
+	request.add(joined_affinities, output_size)
+	request.add(input_affinities_scale, output_size)
+	request.add(pred_affinities, output_size)
+
+	offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
+	crop_roi = Roi(offset, output_size)
+	print("crop_roi: ", crop_roi)
 
 	train_pipeline = (
 		ToyNeuronSegmentationGenerator(
@@ -69,7 +71,6 @@ def train_until(max_iteration):
 			points_per_skeleton=5,
 			smoothness=2,
 			interpolation="linear") + 
-		# RandomProvider()+
 		# ElasticAugment(
 		# 	control_point_spacing=[4,40,40],
 		# 	jitter_sigma=[0,2,2],
@@ -84,21 +85,18 @@ def train_until(max_iteration):
         AddAffinities(
             neighborhood,
             labels=labels,
-            affinities=gt,
-            affinities_mask=gt_mask) +
-            # affinities=gt) +
+            affinities=input_affinities) +
 		AddJoinedAffinities(
-			input_affinities=gt,
-			joined_affinities=gt_joined) +
+			input_affinities=input_affinities,
+			joined_affinities=joined_affinities) +
 		AddRealism(
-			affinities = gt_joined,
+			affinities = joined_affinities,
 			realistic_data = raw,
 			sp=0.25,
 			sigma=1) +
 		BalanceLabels(
-			gt,
-			gt_scale,
-			gt_mask) +
+			input_affinities,
+			input_affinities_scale) +
 		DefectAugment(
 			raw,
 			prob_missing=0.03,
@@ -109,49 +107,53 @@ def train_until(max_iteration):
 		PreCache(
 			cache_size=40,
 			num_workers=10) +
+		Crop(
+			key=joined_affinities,
+			roi=crop_roi) +
 		Train(
-			'train_net',
+			'train/train_net',
 			optimizer=config['optimizer'],
 			loss=config['loss'],
 			inputs={
 				config['raw']: raw,
-				config['gt_affs']: gt
+				config['gt_affs']: input_affinities,
+				config['affs_loss_weights']: input_affinities_scale
 			},
 			outputs={
-				config['affs']: affs
+				config['affs']: pred_affinities
 			},
 			gradients={
-				config['affs']: affs_gradient
+				config['affs']: pred_affinities_gradient
 			},
-			# summary=config['summary'],
+			summary=config['summary'],
 			log_dir='log',
 			save_every=10000) +
 		IntensityScaleShift(raw, 0.5, 0.5) +
 		Snapshot({
 				raw: 'volumes/raw',
-				labels: 'volumes/labels/neuron_ids',
-				gt: 'volumes/gt_affinities',
-				affs: 'volumes/pred_affinities',
-				gt_mask: 'volumes/labels/gt_mask',
+				labels: 'volumes/labels/labels',
+				joined_affinities: 'volumes/joined_affinities',
+				pred_affinities: 'volumes/pred_affinities',
+				# gt_mask: 'volumes/labels/gt_mask',
 				# labels_mask: 'volumes/labels/mask',
-				affs_gradient: 'volumes/affs_gradient'
+				pred_affinities_gradient: 'volumes/pred_affinities_gradient'
 			},
 			dataset_dtypes={
 				labels: np.uint64
-			})+
-			# every=1000,
-			# output_filename='batch_{iteration}.hdf',
-			# additional_request=snapshot_request) +
+			},
+			every=100,
+			output_filename='batch_{iteration}.hdf') + 
 		PrintProfilingStats(every=10)
 	)
 
 	print("Starting training...")
 	with build(train_pipeline) as b:
 		for i in range(max_iteration - trained_until):
-			b.request_batch(request)
+			req = b.request_batch(request)
+			print ("iteration: ", i)
 	print("Training finished")
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
 	iteration = int(sys.argv[1])
 	train_until(iteration)
