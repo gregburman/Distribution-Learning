@@ -6,33 +6,33 @@ from skimage.filters import gaussian
 
 class AddRealism(BatchFilter):
 
-	def __init__(self, affinities, realistic_data, sp, sigma):
-		self.affinities = affinities
-		self.realistic_data = realistic_data
+	def __init__(self, joined_affinities, raw, sp, sigma):
+		self.joined_affinities = joined_affinities
+		self.raw = raw
 		self.sp = sp
 		self.sigma = sigma
 
 
 	def setup(self):
-		spec = self.spec[self.affinities].copy()
-		self.provides(self.realistic_data, spec)
+		spec = self.spec[self.joined_affinities].copy()
+		self.provides(self.raw, spec)
 
 
 	def prepare(self, request):
-		request[self.affinities].roi = request[self.realistic_data].roi.copy()
+		request[self.joined_affinities].roi = request[self.raw].roi.copy()
 
 
 	def process(self, batch, request):
-		affinities = batch[self.affinities].data.copy()
+		joined_affinities = batch[self.joined_affinities].data.copy()
 
-		realistic_data = random_noise(affinities, 's&p', amount=self.sp)
-		realistic_data = gaussian(realistic_data,self.sigma)
-		realistic_data = realistic_data*0.7
+		raw = random_noise(joined_affinities, 's&p', amount=self.sp)
+		raw = gaussian(raw,self.sigma)
+		raw = raw*0.7
 
-		spec = self.spec[self.realistic_data].copy()
-		spec.roi = request[self.realistic_data].roi
-		batch.arrays[self.realistic_data] = gp.Array(realistic_data, spec)
+		spec = self.spec[self.raw].copy()
+		spec.roi = request[self.raw].roi
+		batch.arrays[self.raw] = gp.Array(raw, spec)
 
-		roi = request[self.affinities].roi
-		batch.arrays[self.affinities] = batch.arrays[self.affinities].crop(roi)
+		roi = request[self.joined_affinities].roi
+		batch.arrays[self.joined_affinities] = batch.arrays[self.joined_affinities].crop(roi)
 
