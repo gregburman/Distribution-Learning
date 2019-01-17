@@ -141,8 +141,8 @@ def train_until(max_iteration):
 				pred_affinities_key: 'volumes/pred_affinities',
 				pred_affinities_gradient_key: 'volumes/pred_affinities_gradient'
 			},
-			output_filename='batch_{iteration}.hdf',
-			every=10,
+			output_filename='train/batch_{iteration}.hdf',
+			every=200,
 			dataset_dtypes={
 				raw_key: np.uint64,
 				labels_key: np.uint64
@@ -154,7 +154,6 @@ def train_until(max_iteration):
 	with build(train_pipeline) as b:
 		for i in range(max_iteration - trained_until):
 			b.request_batch(request)
-			# print ("iteration: ", i)
 	print("Training finished")
 
 

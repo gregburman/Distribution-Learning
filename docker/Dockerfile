@@ -17,6 +17,8 @@ RUN \
 # install skelerator
 RUN git clone https://github.com/nilsec/skelerator.git
 WORKDIR skelerator
+RUN git fetch origin pull/1/head:non-isotropic-generation
+RUN git checkout non-isotropic-generation
 RUN python setup.py install
 
 WORKDIR /distribution-learning
