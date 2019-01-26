@@ -8,11 +8,16 @@ def create_network(input_shape, name):
 
     raw = tf.placeholder(tf.float32, shape=input_shape)
     raw_batched = tf.reshape(raw, (1, 1) + input_shape)
+    print type(raw_batched)
 
-    unet, _, _ = mala.networks.unet(raw_batched, 12, 3, [[3,3,3],[2,2,2],[2,2,2]]) # 2,2,2 etc or 3,3,3 (downsample the same amount in all dimensions  because toy data isotropic)
+    unet, _, _ = mala.networks.unet(
+        fmaps_in=raw_batched,
+        num_fmaps=12,
+        fmap_inc_factors=3,
+        downsample_factors=[[3,3,3],[2,2,2],[2,2,2]]) # 2,2,2 etc or 3,3,3 (downsample the same amount in all dimensions  because toy data isotropic)
 
     affs_batched, _ = mala.networks.conv_pass(
-        unet,
+        fmaps_in=unet,
         kernel_sizes=[1],
         num_fmaps=3,
         activation='sigmoid',
@@ -61,18 +66,4 @@ def create_network(input_shape, name):
         json.dump(config, f)
 
 if __name__ == "__main__":
-
-    z=18
-    xy=162
-
-    create_network((199, 199, 199), 'train_net')
-    # create_network((96+z, 484+xy, 484+xy), 'config')
-
-    # with open('config.json', 'r') as f:
-    #     config = json.load(f)
-    # config.update({
-    #     'out_dims': 3,
-    #     'out_dtype': 'uint8'
-    # })
-    # with open('config.json', 'w') as f:
-    #     json.dump(config, f)
+    create_network((196, 196, 196), 'train_net')
