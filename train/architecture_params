@@ -1,0 +1,25 @@
+base unet-related architecture parameters:
+
+	num conv passes [DONE]
+	num downsample steps [DONE]
+	conv activation function [DONE]
+	downsample/upsample type (max_pool, avg_pool, trilinear interp) [DONE]
+
+other unet-related architecture parameters:
+
+	fov [DONE]
+	voxel size [DONE]
+
+	padding type [DONE]
+	stride [N/A]
+
+	base num feature maps [DONE]
+	num feature map increment factor [DONE]
+
+	downsample factors [DONE]
+
+
+
+non unet-related architecture parameters:
+
+	- num latent dims

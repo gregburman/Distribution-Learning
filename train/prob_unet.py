@@ -3,6 +3,137 @@
 import tensorflow as tf
 from  tensorflow_probability import distributions as tfd
 
+def prob_unet():
+	pass
+
+def prior(
+	fmaps_in,
+	num_layers,
+	latent_dim,
+	base_num_fmaps,
+	fmap_inc_factor,
+	downsample_factors,
+	padding='valid',
+	num_conv_passes=2,
+	kernel_size_down=[3,3,3],
+	activation='relu',
+	downsample_type="max_pool",
+	fov=(1, 1, 1),
+	voxel_size=(1, 1, 1),
+	name="prior"):
+
+	print "PRIOR"
+	axis = [2,3,4]
+	encoding =  encoder(fmaps_in, num_layers, base_num_fmaps, fmap_inc_factor,\
+		downsample_factors, padding, num_conv_passes, kernel_size_down,\
+		activation, downsample_type, fov, voxel_size, name)
+	encoding = tf.reduce_mean(encoding, axis=axis, keepdims=True)
+
+	mu_log_sigma = tf.layers.conv3d(
+		inputs=encoding,
+		filters=latent_dim*2,
+		kernel_size=1,
+		padding=padding,
+		data_format="channels_first",
+		activation=activation,
+		name="prior_conv")
+
+	mu_log_sigma = tf.squeeze(mu_log_sigma, axis=axis)
+	mu = mu_log_sigma[:, :latent_dim]
+	log_sigma = mu_log_sigma[:, latent_dim:]
+	sigma =tf.exp(log_sigma)
+
+	fout = tfd.MultivariateNormalDiag(loc=mu, scale_diag=sigma)
+	print "output: ", fout.event_shape
+
+	return fout
+
+def posterior(
+	fmaps_in,
+	affmaps_in,
+	num_layers,
+	latent_dim,
+	base_num_fmaps,
+	fmap_inc_factor,
+	downsample_factors,
+	padding='valid',
+	num_conv_passes=2,
+	kernel_size_down=[3,3,3],
+	activation='relu',
+	downsample_type="max_pool",
+	fov=(1, 1, 1),
+	voxel_size=(1, 1, 1),
+	name="posterior"):
+
+	print "POSTERIOR"
+	axis = [2,3,4]
+	encoding =  encoder(fmaps_in, num_layers, base_num_fmaps, fmap_inc_factor,\
+		downsample_factors, padding, num_conv_passes, kernel_size_down,\
+		activation, downsample_type, fov, voxel_size, name)
+	encoding = tf.reduce_mean(encoding, axis=axis, keepdims=True)
+
+	mu_log_sigma = tf.layers.conv3d(
+		inputs=encoding,
+		filters=latent_dim*2,
+		kernel_size=1,
+		padding=padding,
+		data_format="channels_first",
+		activation=activation,
+		name="posterior_conv")
+
+def encoder(
+	fmaps_in,
+	num_layers,
+	base_num_fmaps,
+	fmap_inc_factor,
+	downsample_factors,
+	padding='valid',
+	num_conv_passes=2,
+	kernel_size_down=[3,3,3],
+	activation='relu',
+	downsample_type="max_pool",
+	fov=(1, 1, 1),
+	voxel_size=(1, 1, 1),
+	name="encoder"):
+
+	fmaps = fmaps_in
+	num_fmaps = base_num_fmaps
+	print "input: ", fmaps.shape
+	for layer in range(num_layers):
+		for conv_pass in range(num_conv_passes):
+			fmaps = tf.layers.conv3d(
+				inputs=fmaps,
+				filters=num_fmaps,
+				kernel_size=kernel_size_down[layer],
+				padding=padding,
+				data_format="channels_first",
+				activation=activation,
+				name="%s_enc_conv_pass_%i_%i"%(name, layer, conv_pass))
+
+		fmaps = downsample(
+			fmaps_in=fmaps,
+			downsample_type=downsample_type,
+			downsample_factors=downsample_factors[layer],
+			padding=padding,
+			voxel_size=voxel_size,
+			name="%s_enc_downsample_%i"%(name, layer))
+
+		print "layer ", layer, ": ", fmaps.shape
+		num_fmaps *= fmap_inc_factor
+
+		if layer == num_layers-1:
+			for conv_pass in range(num_conv_passes):
+				fmaps = tf.layers.conv3d(
+					inputs=fmaps,
+					filters=num_fmaps,
+					kernel_size=kernel_size_down[layer],
+					padding=padding,
+					data_format="channels_first",
+					activation=activation,
+					name="%s_enc_conv_pass_bottom_%i"%(name, conv_pass))
+
+	print "bottom: ", fmaps.shape
+	return fmaps
 
 def unet(
 	fmaps_in,
@@ -18,13 +149,14 @@ def unet(
 	downsample_type="max_pool",
 	upsample_type="conv_transpose",
 	fov=(1, 1, 1),
-	voxel_size=(1, 1, 1)):
+	voxel_size=(1, 1, 1),
+	name="unet"):
 
-	print "encode"
+	print "UNET"
 	fmaps = fmaps_in
 	num_fmaps = base_num_fmaps
 	across = []
-	print fmaps.shape
+	print "input: ", fmaps.shape
 	for layer in range(num_layers):
 		for conv_pass in range(num_conv_passes):
 			fmaps = tf.layers.conv3d(
@@ -34,7 +166,7 @@ def unet(
 				padding=padding,
 				data_format="channels_first",
 				activation=activation,
-				name="enc_conv_pass_%i_%i"%(layer, conv_pass))
+				name="%s_enc_conv_pass_%i_%i"%(name, layer, conv_pass))
 		across.append(fmaps)
 
 		fmaps = downsample(
@@ -43,9 +175,9 @@ def unet(
 			downsample_factors=downsample_factors[layer],
 			padding=padding,
 			voxel_size=voxel_size,
-			name="enc_downsample_%i"%layer)
+			name="%s_enc_downsample_%i"%(name, layer))
 
-		print fmaps.shape
+		print "layer ", (layer + 1), ": ", fmaps.shape
 		num_fmaps *= fmap_inc_factor
 
 		if layer == num_layers-1:
@@ -57,11 +189,10 @@ def unet(
 					padding=padding,
 					data_format="channels_first",
 					activation=activation,
-					name="enc_conv_pass_bottom_%i"%conv_pass)
+					name="%s_enc_conv_pass_bottom_%i"%(name, conv_pass))
 
-	print "embedded: ", fmaps.shape
+	print "bottom ", fmaps.shape
 
-	print "decode"
 	for layer in reversed(range(num_layers)):
 		num_fmaps /= fmap_inc_factor
 		fmaps = upsample(
@@ -72,7 +203,7 @@ def unet(
 			activation=activation,
 			padding=padding,
 			voxel_size=voxel_size,
-			name="dec_upsample_%i"%layer)
+			name="%s_dec_upsample_%i"%(name, layer))
 
 		cropped = crop(across[layer], fmaps.get_shape().as_list())
 		fmaps = tf.concat([cropped, fmaps], 1)
@@ -85,9 +216,10 @@ def unet(
 				padding=padding,
 				data_format="channels_first",
 				activation=activation,
-				name="dec_conv_pass_%i_%i"%(layer, conv_pass))
-		print fmaps.shape
+				name="%s_dec_conv_pass_%i_%i"%(name, layer, conv_pass))
+		print "layer ", (layer + 1), ": ", fmaps.shape
 
+	print "output: ", fmaps.shape
 	return fmaps
 
 
@@ -175,6 +307,26 @@ if __name__ == "__main__":
 	unet = unet(
 		fmaps_in=raw,
 		num_layers=3,
+		base_num_fmaps=12,
+		fmap_inc_factor=3,
+		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+
+	print ""
+
+	prior = prior(
+		fmaps_in=raw,
+		num_layers=3,
+		latent_dim=6,
+		base_num_fmaps=12,
+		fmap_inc_factor=3,
+		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+
+	print ""
+
+	posterior = posterior(
+		fmaps_in=raw,
+		num_layers=3,
+		latent_dim=6,
 		base_num_fmaps=12,
 		fmap_inc_factor=3,
 		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
