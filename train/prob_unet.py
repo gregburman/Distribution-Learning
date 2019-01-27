@@ -11,6 +11,8 @@ def prob_unet(
 	base_num_fmaps,
 	fmap_inc_factor,
 	downsample_factors,
+	num_classes,
+	num_1x1_convs,
 	padding='valid',
 	num_conv_passes=2,
 	kernel_size_down=[3,3,3],
@@ -23,32 +25,44 @@ def prob_unet(
 	name="prob_unet"):
 
 	_unet = unet(
-		fmaps_in=raw,
+		fmaps_in=fmaps_in,
 		num_layers=num_layers,
 		base_num_fmaps=base_num_fmaps,
 		fmap_inc_factor=fmap_inc_factor,
-		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+		downsample_factors=downsample_factors)
 
 	print ""
 
 	_prior = prior(
-		fmaps_in=raw,
+		fmaps_in=fmaps_in,
 		num_layers=num_layers,
 		latent_dim=latent_dim,
 		base_num_fmaps=base_num_fmaps,
 		fmap_inc_factor=fmap_inc_factor,
-		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+		downsample_factors=downsample_factors)
 
 	print ""
 
 	_posterior = posterior(
-		fmaps_in=raw,
-		affmaps_in=gt,
+		fmaps_in=fmaps_in,
+		affmaps_in=affmaps_in,
 		num_layers=num_layers,
 		latent_dim=latent_dim,
 		base_num_fmaps=base_num_fmaps,
 		fmap_inc_factor=fmap_inc_factor,
-		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+		downsample_factors=downsample_factors)
+
+	print ""
+
+	_f_comb = f_comb(
+		fmaps_in=fmaps_in,
+		num_fmaps=base_num_fmaps,
+		num_classes=num_classes,
+		num_1x1_convs=num_1x1_convs,
+		activation='relu',
+		name='f_comb')
+
+	return _unet, _prior, _posterior, _f_comb
 
 def prior(
 	fmaps_in,
@@ -193,6 +207,32 @@ def encoder(
 
 	print "bottom: ", fmaps.shape
 	return fmaps
+
+def f_comb(
+	fmaps_in,
+	num_fmaps,
+	num_classes,
+	num_1x1_convs,
+	padding='valid',
+	activation='relu',
+	name='f_comb'):
+
+	print "F_COMB"
+	fmaps = fmaps_in
+	print "input: ", fmaps.shape
+	for conv_pass in range(num_1x1_convs):
+		fmaps = tf.layers.conv3d(
+			inputs=fmaps,
+			filters=num_fmaps,
+			kernel_size=1,
+			padding=padding,
+			data_format="channels_first",
+			activation=activation,
+			name="%s_conv_pass_%i"%(name, conv_pass))
+
+	print "output: ", fmaps.shape
+	return fmaps
+
 
 def unet(
 	fmaps_in,
@@ -373,39 +413,13 @@ if __name__ == "__main__":
 	raw = tf.placeholder(tf.float32, (1,1,196,196,196))
 	gt = tf.placeholder(tf.float32, (1,1, 196, 196, 196)) # flatten affmaps?
 
-	prob_unet = prob_unet(
+	unet, prior, posterior, f_comb = prob_unet(
 		fmaps_in=raw,
 		affmaps_in=gt,
 		num_layers=3,
 		latent_dim=6,
 		base_num_fmaps=12,
 		fmap_inc_factor=3,
-		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
-
-	# unet = unet(
-	# 	fmaps_in=raw,
-	# 	num_layers=3,
-	# 	base_num_fmaps=12,
-	# 	fmap_inc_factor=3,
-	# 	downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
-
-	# print ""
-
-	# prior = prior(
-	# 	fmaps_in=raw,
-	# 	num_layers=3,
-	# 	latent_dim=6,
-	# 	base_num_fmaps=12,
-	# 	fmap_inc_factor=3,
-	# 	downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
-
-	# print ""
-
-	# posterior = posterior(
-	# 	fmaps_in=raw,
-	# 	affmaps_in=gt,
-	# 	num_layers=3,
-	# 	latent_dim=6,
-	# 	base_num_fmaps=12,
-	# 	fmap_inc_factor=3,
-	# 	downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]],
+		num_classes=4,
+		num_1x1_convs=3)
