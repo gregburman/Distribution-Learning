@@ -3,8 +3,52 @@
 import tensorflow as tf
 from  tensorflow_probability import distributions as tfd
 
-def prob_unet():
-	pass
+def prob_unet(
+	fmaps_in,
+	affmaps_in,
+	num_layers,
+	latent_dim,
+	base_num_fmaps,
+	fmap_inc_factor,
+	downsample_factors,
+	padding='valid',
+	num_conv_passes=2,
+	kernel_size_down=[3,3,3],
+	kernel_size_up=[3,3,3],
+	activation='relu',
+	downsample_type="max_pool",
+	upsample_type="conv_transpose",
+	fov=(1, 1, 1),
+	voxel_size=(1, 1, 1),
+	name="prob_unet"):
+
+	_unet = unet(
+		fmaps_in=raw,
+		num_layers=num_layers,
+		base_num_fmaps=base_num_fmaps,
+		fmap_inc_factor=fmap_inc_factor,
+		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+
+	print ""
+
+	_prior = prior(
+		fmaps_in=raw,
+		num_layers=num_layers,
+		latent_dim=latent_dim,
+		base_num_fmaps=base_num_fmaps,
+		fmap_inc_factor=fmap_inc_factor,
+		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+
+	print ""
+
+	_posterior = posterior(
+		fmaps_in=raw,
+		affmaps_in=gt,
+		num_layers=num_layers,
+		latent_dim=latent_dim,
+		base_num_fmaps=base_num_fmaps,
+		fmap_inc_factor=fmap_inc_factor,
+		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
 
 def prior(
 	fmaps_in,
@@ -23,11 +67,12 @@ def prior(
 	name="prior"):
 
 	print "PRIOR"
-	axis = [2,3,4]
+	spacial_axes = [2,3,4]
+
 	encoding =  encoder(fmaps_in, num_layers, base_num_fmaps, fmap_inc_factor,\
 		downsample_factors, padding, num_conv_passes, kernel_size_down,\
 		activation, downsample_type, fov, voxel_size, name)
-	encoding = tf.reduce_mean(encoding, axis=axis, keepdims=True)
+	encoding = tf.reduce_mean(encoding, axis=spacial_axes, keepdims=True)
 
 	mu_log_sigma = tf.layers.conv3d(
 		inputs=encoding,
@@ -38,7 +83,7 @@ def prior(
 		activation=activation,
 		name="prior_conv")
 
-	mu_log_sigma = tf.squeeze(mu_log_sigma, axis=axis)
+	mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes)
 	mu = mu_log_sigma[:, :latent_dim]
 	log_sigma = mu_log_sigma[:, latent_dim:]
 	sigma =tf.exp(log_sigma)
@@ -66,11 +111,15 @@ def posterior(
 	name="posterior"):
 
 	print "POSTERIOR"
-	axis = [2,3,4]
+	channel_axis = 1
+	spacial_axes = [2,3,4]
+	affmaps_in = tf.cast(affmaps_in, tf.float32)
+	fmaps_in = tf.concat([fmaps_in, affmaps_in], axis=channel_axis)
+
 	encoding =  encoder(fmaps_in, num_layers, base_num_fmaps, fmap_inc_factor,\
 		downsample_factors, padding, num_conv_passes, kernel_size_down,\
 		activation, downsample_type, fov, voxel_size, name)
-	encoding = tf.reduce_mean(encoding, axis=axis, keepdims=True)
+	encoding = tf.reduce_mean(encoding, axis=spacial_axes, keepdims=True)
 
 	mu_log_sigma = tf.layers.conv3d(
 		inputs=encoding,
@@ -80,6 +129,16 @@ def posterior(
 		data_format="channels_first",
 		activation=activation,
 		name="posterior_conv")
+
+	mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes)
+	mu = mu_log_sigma[:, :latent_dim]
+	log_sigma = mu_log_sigma[:, latent_dim:]
+	sigma =tf.exp(log_sigma)
+
+	fout = tfd.MultivariateNormalDiag(loc=mu, scale_diag=sigma)
+	print "output: ", fout.event_shape
+
+	return fout
 
 def encoder(
 	fmaps_in,
@@ -219,6 +278,16 @@ def unet(
 				name="%s_dec_conv_pass_%i_%i"%(name, layer, conv_pass))
 		print "layer ", (layer + 1), ": ", fmaps.shape
 
+	print "last layer: ", fmaps.shape
+
+	fmaps = tf.layers.conv3d(
+		inputs=fmaps,
+		filters=3, #flatten?
+		kernel_size=1,
+		padding=padding,
+		data_format="channels_first",
+		activation='sigmoid',
+		name="%s_output_conv_pass_%i_%i"%(name, layer, conv_pass))
 	print "output: ", fmaps.shape
 	return fmaps
 
@@ -302,31 +371,41 @@ if __name__ == "__main__":
 	# unet = unet (own enc + dec)
 
 	raw = tf.placeholder(tf.float32, (1,1,196,196,196))
-	gt = tf.placeholder(tf.float32, (1,3, 68, 68, 68))
+	gt = tf.placeholder(tf.float32, (1,1, 196, 196, 196)) # flatten affmaps?
 
-	unet = unet(
+	prob_unet = prob_unet(
 		fmaps_in=raw,
-		num_layers=3,
-		base_num_fmaps=12,
-		fmap_inc_factor=3,
-		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
-
-	print ""
-
-	prior = prior(
-		fmaps_in=raw,
+		affmaps_in=gt,
 		num_layers=3,
 		latent_dim=6,
 		base_num_fmaps=12,
 		fmap_inc_factor=3,
 		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
 
-	print ""
+	# unet = unet(
+	# 	fmaps_in=raw,
+	# 	num_layers=3,
+	# 	base_num_fmaps=12,
+	# 	fmap_inc_factor=3,
+	# 	downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
 
-	posterior = posterior(
-		fmaps_in=raw,
-		num_layers=3,
-		latent_dim=6,
-		base_num_fmaps=12,
-		fmap_inc_factor=3,
-		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+	# print ""
+
+	# prior = prior(
+	# 	fmaps_in=raw,
+	# 	num_layers=3,
+	# 	latent_dim=6,
+	# 	base_num_fmaps=12,
+	# 	fmap_inc_factor=3,
+	# 	downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
+
+	# print ""
+
+	# posterior = posterior(
+	# 	fmaps_in=raw,
+	# 	affmaps_in=gt,
+	# 	num_layers=3,
+	# 	latent_dim=6,
+	# 	base_num_fmaps=12,
+	# 	fmap_inc_factor=3,
+	# 	downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])

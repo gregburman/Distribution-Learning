@@ -16,19 +16,19 @@ def create_network(input_shape, name):
 	# 	fmap_inc_factors=3,
 	# 	downsample_factors=[[3,3,3],[2,2,2],[2,2,2]]) # 2,2,2 etc or 3,3,3 (downsample the same amount in all dimensions  because toy data isotropic)
 
-	unet = prob_unet.unet(
+	affs_batched = prob_unet.unet(
 		fmaps_in=raw_batched,
 		num_layers=3,
 		base_num_fmaps=12,
 		fmap_inc_factor=3,
 		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
 
-	affs_batched, _ = mala.networks.conv_pass(
-		fmaps_in=unet,
-		kernel_sizes=[1],
-		num_fmaps=3,
-		activation='sigmoid',
-		name='affs')
+	# affs_batched, _ = mala.networks.conv_pass(
+	# 	fmaps_in=unet,
+	# 	kernel_sizes=[1],
+	# 	num_fmaps=3,
+	# 	activation='sigmoid',
+	# 	name='affs')
 
 	output_shape_batched = affs_batched.get_shape().as_list()
 	output_shape = output_shape_batched[1:] # strip the batch dimension
