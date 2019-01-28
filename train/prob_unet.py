@@ -7,11 +7,11 @@ def prob_unet(
 	fmaps_in,
 	affmaps_in,
 	num_layers,
+	num_classes,
 	latent_dim,
 	base_num_fmaps,
 	fmap_inc_factor,
 	downsample_factors,
-	num_classes,
 	num_1x1_convs,
 	padding='valid',
 	num_conv_passes=2,
@@ -54,8 +54,13 @@ def prob_unet(
 
 	print ""
 
+	# sample as done in circle_cvae, because differentiation is clearer
+
+	sample = sample_z(_posterior, latent_dim)
+
 	_f_comb = f_comb(
-		fmaps_in=fmaps_in,
+		features=_unet,
+		sample=sample,
 		num_fmaps=base_num_fmaps,
 		num_classes=num_classes,
 		num_1x1_convs=num_1x1_convs,
@@ -98,14 +103,17 @@ def prior(
 		name="prior_conv")
 
 	mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes)
-	mu = mu_log_sigma[:, :latent_dim]
-	log_sigma = mu_log_sigma[:, latent_dim:]
-	sigma =tf.exp(log_sigma)
+	# mean = mu_log_sigma[:, :latent_dim]
+	# log_sigma = mu_log_sigma[:, latent_dim:]
+	# sigma =tf.exp(log_sigma)
 
-	fout = tfd.MultivariateNormalDiag(loc=mu, scale_diag=sigma)
-	print "output: ", fout.event_shape
+	# f_out = tfd.MultivariateNormalDiag(loc=mu, scale_diag=sigma)
+	# print "output: ", f_out.event_shape
 
-	return fout
+	# return f_out
+
+	return mu_log_sigma
+
 
 def posterior(
 	fmaps_in,
@@ -145,14 +153,17 @@ def posterior(
 		name="posterior_conv")
 
 	mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes)
-	mu = mu_log_sigma[:, :latent_dim]
-	log_sigma = mu_log_sigma[:, latent_dim:]
-	sigma =tf.exp(log_sigma)
+	# mean = mu_log_sigma[:, :latent_dim]
+	# log_sigma = mu_log_sigma[:, latent_dim:]
+	# sigma =tf.exp(log_sigma)
 
-	fout = tfd.MultivariateNormalDiag(loc=mu, scale_diag=sigma)
-	print "output: ", fout.event_shape
+	# f_out = tfd.MultivariateNormalDiag(loc=mean, scale_diag=sigma)
+	# print "fout: ", f_out.sample().shape
+	# print "output: ", f_out.event_shape
 
-	return fout
+	# return f_out
+
+	return mu_log_sigma
 
 def encoder(
 	fmaps_in,
@@ -169,32 +180,12 @@ def encoder(
 	voxel_size=(1, 1, 1),
 	name="encoder"):
 
-	fmaps = fmaps_in
-	num_fmaps = base_num_fmaps
-	print "input: ", fmaps.shape
-	for layer in range(num_layers):
-		for conv_pass in range(num_conv_passes):
-			fmaps = tf.layers.conv3d(
-				inputs=fmaps,
-				filters=num_fmaps,
-				kernel_size=kernel_size_down[layer],
-				padding=padding,
-				data_format="channels_first",
-				activation=activation,
-				name="%s_enc_conv_pass_%i_%i"%(name, layer, conv_pass))
+	with tf.variable_scope(name) as vs:
 
-		fmaps = downsample(
-			fmaps_in=fmaps,
-			downsample_type=downsample_type,
-			downsample_factors=downsample_factors[layer],
-			padding=padding,
-			voxel_size=voxel_size,
-			name="%s_enc_downsample_%i"%(name, layer))
-
-		print "layer ", layer, ": ", fmaps.shape
-		num_fmaps *= fmap_inc_factor
-
-		if layer == num_layers-1:
+		fmaps = fmaps_in
+		num_fmaps = base_num_fmaps
+		print "input: ", fmaps.shape
+		for layer in range(num_layers):
 			for conv_pass in range(num_conv_passes):
 				fmaps = tf.layers.conv3d(
 					inputs=fmaps,
@@ -203,13 +194,49 @@ def encoder(
 					padding=padding,
 					data_format="channels_first",
 					activation=activation,
-					name="%s_enc_conv_pass_bottom_%i"%(name, conv_pass))
+					name="%s_enc_conv_pass_%i_%i"%(name, layer, conv_pass))
 
-	print "bottom: ", fmaps.shape
-	return fmaps
+			fmaps = downsample(
+				fmaps_in=fmaps,
+				downsample_type=downsample_type,
+				downsample_factors=downsample_factors[layer],
+				padding=padding,
+				voxel_size=voxel_size,
+				name="%s_enc_downsample_%i"%(name, layer))
+
+			print "layer ", layer, ": ", fmaps.shape
+			num_fmaps *= fmap_inc_factor
+
+			if layer == num_layers-1:
+				for conv_pass in range(num_conv_passes):
+					fmaps = tf.layers.conv3d(
+						inputs=fmaps,
+						filters=num_fmaps,
+						kernel_size=kernel_size_down[layer],
+						padding=padding,
+						data_format="channels_first",
+						activation=activation,
+						name="%s_enc_conv_pass_bottom_%i"%(name, conv_pass))
+
+		print "bottom: ", fmaps.shape
+		return fmaps
+
+def sample_z(latents, latent_dim):
+	mean = latents[:, :latent_dim]
+	log_sigma = latents[:, latent_dim:]
+
+	dim = mean.get_shape().as_list()
+	normal = tfd.MultivariateNormalDiag(tf.zeros(dim), tf.ones(dim))
+	sample = normal.sample(sample_shape=1)
+
+	z_sigma = tf.multiply(tf.exp(log_sigma), sample)
+	z = tf.add(mean, z_sigma)
+
+	return z[0,:,:]
 
 def f_comb(
-	fmaps_in,
+	features,
+	sample,
 	num_fmaps,
 	num_classes,
 	num_1x1_convs,
@@ -217,12 +244,36 @@ def f_comb(
 	activation='relu',
 	name='f_comb'):
 
+	channel_axis = 1
+	spatial_axis = [2,3,4]
+
 	print "F_COMB"
-	fmaps = fmaps_in
-	print "input: ", fmaps.shape
+
+	print "features: ", features.shape
+	
+
+
+	# broadcast
+	shape = features.get_shape()
+	spatial_shape = [shape[axis] for axis in spatial_axis]
+	multiples = [1] + spatial_shape
+	multiples.insert(channel_axis, 1)
+
+	if len(sample.get_shape()) == 2:
+		sample = tf.expand_dims(sample, axis=2)
+		sample = tf.expand_dims(sample, axis=2)
+		sample = tf.expand_dims(sample, axis=2)
+
+	print "sample: ", sample.shape
+
+	broadcast_sample = tf.tile(sample, multiples)
+	features = tf.concat([features, broadcast_sample], axis=channel_axis)
+	print "features: ", features
+
+	# print "input: ", fmaps.shape
 	for conv_pass in range(num_1x1_convs):
 		fmaps = tf.layers.conv3d(
-			inputs=fmaps,
+			inputs=features,
 			filters=num_fmaps,
 			kernel_size=1,
 			padding=padding,
@@ -319,16 +370,7 @@ def unet(
 		print "layer ", (layer + 1), ": ", fmaps.shape
 
 	print "last layer: ", fmaps.shape
-
-	fmaps = tf.layers.conv3d(
-		inputs=fmaps,
-		filters=3, #flatten?
-		kernel_size=1,
-		padding=padding,
-		data_format="channels_first",
-		activation='sigmoid',
-		name="%s_output_conv_pass_%i_%i"%(name, layer, conv_pass))
-	print "output: ", fmaps.shape
+	
 	return fmaps
 
 
@@ -406,20 +448,24 @@ def crop(fmaps_in, shape):
 
 if __name__ == "__main__":
 
-	# prior = enc + trans + sampling
-	# posterior = enc + transf + sampling
-	# unet = unet (own enc + dec)
-
 	raw = tf.placeholder(tf.float32, (1,1,196,196,196))
-	gt = tf.placeholder(tf.float32, (1,1, 196, 196, 196)) # flatten affmaps?
+	gt = tf.placeholder(tf.float32, (1,3, 196, 196, 196))
 
-	unet, prior, posterior, f_comb = prob_unet(
+	# X = raw # 1, x, y, z
+	# Y = gt_affs # 3, x', y', z'
+	# pred_Y = pred_aff # 3, x', y'
+
+
+	_prob_unet = prob_unet(
 		fmaps_in=raw,
 		affmaps_in=gt,
 		num_layers=3,
+		num_classes=3,
 		latent_dim=6,
 		base_num_fmaps=12,
 		fmap_inc_factor=3,
 		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]],
-		num_classes=4,
 		num_1x1_convs=3)
+
+	# x = prob_unet.sample()
+	# print x

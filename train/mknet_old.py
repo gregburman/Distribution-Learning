@@ -3,7 +3,7 @@ import tensorflow as tf
 import json
 import prob_unet
 
-def create_network(input_shape, output_shape, name):
+def create_network(input_shape, name):
 
 	beta = 1
 
@@ -12,17 +12,14 @@ def create_network(input_shape, output_shape, name):
 	raw = tf.placeholder(tf.float32, shape=input_shape)
 	raw_batched = tf.reshape(raw, (1, 1) + input_shape)
 
-	gt = tf.placeholder(tf.float32, shape=input_shape)
-	gt_batched = tf.reshape(gt, (1, 1) + input_shape)
-
-	# unet, _, _ = mala.networks.unet(raw_batched, 12, 3, [[3,3,3],[2,2,2],[2,2,2]]) # 2,2,2 etc or 3,3,3 (downsample the same amount in all dimensions  because toy data isotropic)
+	unet, _, _ = mala.networks.unet(raw_batched, 12, 3, [[3,3,3],[2,2,2],[2,2,2]]) # 2,2,2 etc or 3,3,3 (downsample the same amount in all dimensions  because toy data isotropic)
 	
-	# affs_batched, _ = mala.networks.conv_pass(
- #        unet,
- #        kernel_sizes=[1],
- #        num_fmaps=3,
- #        activation='sigmoid',
-	# 	name='affs')
+	affs_batched, _ = mala.networks.conv_pass(
+        unet,
+        kernel_sizes=[1],
+        num_fmaps=3,
+        activation='sigmoid',
+		name='affs')
 
     # z_sigma = tf.multiply(tf.exp(log_sigma), sample)
     # z = tf.add(mean, z_sigma)
@@ -44,16 +41,13 @@ def create_network(input_shape, output_shape, name):
 	# 	fmap_inc_factor=3,
 	# 	downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
 
-	unet, prior, posterior, f_comb = prob_unet.prob_unet(
+	pred_y, p, q = prob_unet.prob_unet(
 		fmaps_in=raw_batched,
-		affmaps_in=gt_batched,
+		affmaps_in=gt,
 		num_layers=3,
-		num_classes=3,
-		latent_dim=6,
 		base_num_fmaps=12,
 		fmap_inc_factor=3,
-		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]],
-		num_1x1_convs=3)
+		downsample_factors=[[3,3,3], [2,2,2], [2,2,2]])
 
 	output_shape_batched = affs_batched.get_shape().as_list()
 	output_shape = output_shape_batched[1:] # strip the batch dimension
@@ -101,4 +95,4 @@ def create_network(input_shape, output_shape, name):
 		json.dump(config, f)
 
 if __name__ == "__main__":
-	create_network((199, 199, 199), (68, 68, 68), 'train_net')
+	create_network((199, 199, 199), 'train_net')
