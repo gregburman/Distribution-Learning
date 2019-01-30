@@ -128,7 +128,7 @@ def train_until(max_iteration):
 			},
 			summary=config['summary'],
 			log_dir='log',
-			save_every=10000) +
+			save_every=100) +
 		IntensityScaleShift(
 			array=raw_key,
 			scale=0.5,

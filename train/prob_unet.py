@@ -54,9 +54,7 @@ def prob_unet(
 
 	print ""
 
-	# sample as done in circle_cvae, because differentiation is clearer
-
-	sample = sample_z(_posterior, latent_dim)
+	sample = sample_z(_posterior)
 
 	_f_comb = f_comb(
 		features=_unet,
@@ -103,16 +101,14 @@ def prior(
 		name="prior_conv")
 
 	mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes)
-	# mean = mu_log_sigma[:, :latent_dim]
-	# log_sigma = mu_log_sigma[:, latent_dim:]
-	# sigma =tf.exp(log_sigma)
+	mu = mu_log_sigma[:, :latent_dim]
+	log_sigma = mu_log_sigma[:, latent_dim:]
 
-	# f_out = tfd.MultivariateNormalDiag(loc=mu, scale_diag=sigma)
+	return (mu, log_sigma)
+
+	# f_out = tfd.MultivariateNormalDiag(loc=mu, scale_diag=tf.exp(log_sigma))
 	# print "output: ", f_out.event_shape
-
 	# return f_out
-
-	return mu_log_sigma
 
 
 def posterior(
@@ -153,17 +149,15 @@ def posterior(
 		name="posterior_conv")
 
 	mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes)
-	# mean = mu_log_sigma[:, :latent_dim]
-	# log_sigma = mu_log_sigma[:, latent_dim:]
-	# sigma =tf.exp(log_sigma)
+	mu = mu_log_sigma[:, :latent_dim]
+	log_sigma = mu_log_sigma[:, latent_dim:]
 
-	# f_out = tfd.MultivariateNormalDiag(loc=mean, scale_diag=sigma)
-	# print "fout: ", f_out.sample().shape
+	return (mu, log_sigma)
+
+	# f_out = tfd.MultivariateNormalDiag(loc=mu, scale_diag=tf.exp(log_sigma))
 	# print "output: ", f_out.event_shape
-
 	# return f_out
 
-	return mu_log_sigma
 
 def encoder(
 	fmaps_in,
@@ -180,12 +174,36 @@ def encoder(
 	voxel_size=(1, 1, 1),
 	name="encoder"):
 
-	with tf.variable_scope(name) as vs:
+	# with tf.variable_scope(name) as vs:
+	# 	vs.reuse_variables()
 
-		fmaps = fmaps_in
-		num_fmaps = base_num_fmaps
-		print "input: ", fmaps.shape
-		for layer in range(num_layers):
+
+	fmaps = fmaps_in
+	num_fmaps = base_num_fmaps
+	print "input: ", fmaps.shape
+	for layer in range(num_layers):
+		for conv_pass in range(num_conv_passes):
+			fmaps = tf.layers.conv3d(
+				inputs=fmaps,
+				filters=num_fmaps,
+				kernel_size=kernel_size_down[layer],
+				padding=padding,
+				data_format="channels_first",
+				activation=activation,
+				name="%s_enc_conv_pass_%i_%i"%(name, layer, conv_pass))
+
+		fmaps = downsample(
+			fmaps_in=fmaps,
+			downsample_type=downsample_type,
+			downsample_factors=downsample_factors[layer],
+			padding=padding,
+			voxel_size=voxel_size,
+			name="%s_enc_downsample_%i"%(name, layer))
+
+		print "layer ", layer, ": ", fmaps.shape
+		num_fmaps *= fmap_inc_factor
+
+		if layer == num_layers-1:
 			for conv_pass in range(num_conv_passes):
 				fmaps = tf.layers.conv3d(
 					inputs=fmaps,
@@ -194,36 +212,15 @@ def encoder(
 					padding=padding,
 					data_format="channels_first",
 					activation=activation,
-					name="%s_enc_conv_pass_%i_%i"%(name, layer, conv_pass))
+					name="%s_enc_conv_pass_bottom_%i"%(name, conv_pass))
 
-			fmaps = downsample(
-				fmaps_in=fmaps,
-				downsample_type=downsample_type,
-				downsample_factors=downsample_factors[layer],
-				padding=padding,
-				voxel_size=voxel_size,
-				name="%s_enc_downsample_%i"%(name, layer))
+	print "bottom: ", fmaps.shape
+	return fmaps
 
-			print "layer ", layer, ": ", fmaps.shape
-			num_fmaps *= fmap_inc_factor
+def sample_z(distribution):
 
-			if layer == num_layers-1:
-				for conv_pass in range(num_conv_passes):
-					fmaps = tf.layers.conv3d(
-						inputs=fmaps,
-						filters=num_fmaps,
-						kernel_size=kernel_size_down[layer],
-						padding=padding,
-						data_format="channels_first",
-						activation=activation,
-						name="%s_enc_conv_pass_bottom_%i"%(name, conv_pass))
-
-		print "bottom: ", fmaps.shape
-		return fmaps
-
-def sample_z(latents, latent_dim):
-	mean = latents[:, :latent_dim]
-	log_sigma = latents[:, latent_dim:]
+	mean = distribution[0]
+	log_sigma = distribution[1]
 
 	dim = mean.get_shape().as_list()
 	normal = tfd.MultivariateNormalDiag(tf.zeros(dim), tf.ones(dim))
@@ -251,8 +248,6 @@ def f_comb(
 
 	print "features: ", features.shape
 	
-
-
 	# broadcast
 	shape = features.get_shape()
 	spatial_shape = [shape[axis] for axis in spatial_axis]
@@ -268,7 +263,6 @@ def f_comb(
 
 	broadcast_sample = tf.tile(sample, multiples)
 	features = tf.concat([features, broadcast_sample], axis=channel_axis)
-	print "features: ", features
 
 	# print "input: ", fmaps.shape
 	for conv_pass in range(num_1x1_convs):
