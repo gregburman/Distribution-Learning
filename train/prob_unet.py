@@ -29,7 +29,8 @@ def prob_unet(
 		num_layers=num_layers,
 		base_num_fmaps=base_num_fmaps,
 		fmap_inc_factor=fmap_inc_factor,
-		downsample_factors=downsample_factors)
+		downsample_factors=downsample_factors,
+		padding=padding)
 
 	print ""
 
@@ -39,7 +40,8 @@ def prob_unet(
 		latent_dim=latent_dim,
 		base_num_fmaps=base_num_fmaps,
 		fmap_inc_factor=fmap_inc_factor,
-		downsample_factors=downsample_factors)
+		downsample_factors=downsample_factors,
+		padding=padding)
 
 	print ""
 
@@ -50,7 +52,8 @@ def prob_unet(
 		latent_dim=latent_dim,
 		base_num_fmaps=base_num_fmaps,
 		fmap_inc_factor=fmap_inc_factor,
-		downsample_factors=downsample_factors)
+		downsample_factors=downsample_factors,
+		padding=padding)
 
 	print ""
 
@@ -63,7 +66,8 @@ def prob_unet(
 		num_classes=num_classes,
 		num_1x1_convs=num_1x1_convs,
 		activation='relu',
-		name='f_comb')
+		name='f_comb',
+		padding=padding)
 
 	return _unet, _prior, _posterior, _f_comb
 
@@ -137,7 +141,11 @@ def posterior(
 	encoding =  encoder(fmaps_in, num_layers, base_num_fmaps, fmap_inc_factor,\
 		downsample_factors, padding, num_conv_passes, kernel_size_down,\
 		activation, downsample_type, fov, voxel_size, name)
+
+	print "encoding 1: ", encoding.shape
 	encoding = tf.reduce_mean(encoding, axis=spacial_axes, keepdims=True)
+
+	print "encoding 2: ", encoding.shape
 
 	mu_log_sigma = tf.layers.conv3d(
 		inputs=encoding,
@@ -148,9 +156,12 @@ def posterior(
 		activation=activation,
 		name="posterior_conv")
 
+	print "mu_log_sigma: ", mu_log_sigma.shape
+
 	mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes)
 	mu = mu_log_sigma[:, :latent_dim]
 	log_sigma = mu_log_sigma[:, latent_dim:]
+	print mu_log_sigma.shape
 
 	return (mu, log_sigma)
 
@@ -262,7 +273,9 @@ def f_comb(
 	print "sample: ", sample.shape
 
 	broadcast_sample = tf.tile(sample, multiples)
+	print "broadcast_sample: ", broadcast_sample.shape
 	features = tf.concat([features, broadcast_sample], axis=channel_axis)
+	print "features: ", features.shape
 
 	# print "input: ", fmaps.shape
 	for conv_pass in range(num_1x1_convs):
@@ -296,7 +309,7 @@ def unet(
 	voxel_size=(1, 1, 1),
 	name="unet"):
 
-	print "UNET"
+	print "UNET, padding: ", padding
 	fmaps = fmaps_in
 	num_fmaps = base_num_fmaps
 	across = []

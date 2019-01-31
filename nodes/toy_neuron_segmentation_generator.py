@@ -31,9 +31,10 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 	smoothness: Controls the smoothness of the initial noise map used to generate object boundaries.
 	"""
 
-	def __init__(self, shape, n_objects, points_per_skeleton, smoothness, interpolation):
+	def __init__(self, array_key, shape, n_objects, points_per_skeleton, smoothness, interpolation):
 		assert len(shape) == 3
 
+		self.array_key = array_key
 		self.shape = shape
 		# self.pos = pos
 		self.n_objects = n_objects
@@ -42,27 +43,40 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 		self.interpolation = interpolation
 
 	def setup(self):
-
+		print "setup"
 		# if self.pos == -1:
 		# 	roi_size = tuple(_ for _ in self.shape)
 		# else:
 		# 	roi_size = (1, self.shape[1], self.shape[2])
 
 		roi_size = tuple(_ for _ in self.shape)
-		
+		# print "self.array: ", self.array
+		# print "roi: ", gp.Roi((0, 0, 0), roi_size)
 		self.provides(
-			gp.ArrayKey('GT_LABELS'),
+			self.array_key,
 			gp.ArraySpec(
 				roi=gp.Roi((0, 0, 0), roi_size),
 				voxel_size=(1, 1, 1)))
 
 	def provide(self, request):
+		# print "provide"
 		batch = gp.Batch()        
 
 		for (array_key, request_spec) in request.array_specs.items():
+			# print request
 
+			# print "request_spec roi: ", request_spec.roi
+			
 			array_spec = self.spec[array_key].copy()
+			# print "array_spec: ", array_spec
 			array_spec.roi = request_spec.roi
+
+			# shape = array_spec.roi.get_shape()/array_spec.voxel_size
+			# print ("shape: ", shape)
+
+			# if shape
+
+			# print "array_spec.roi: ", array_spec.roi
 
 			data = create_segmentation(
 				self.shape,
@@ -72,9 +86,11 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 				self.smoothness)
 			segmentation = data["segmentation"]
 
-
 			# if self.pos > -1:
 			# 	segmentation = segmentation[np.newaxis, :, : ] + 1
+
+			# roi = request[self.input_affinities].roi
+			# batch.arrays[self.input_affinities] = batch.arrays[self.input_affinities].crop(roi)
 
 			batch.arrays[array_key] = gp.Array(segmentation, array_spec)
 

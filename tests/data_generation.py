@@ -10,9 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import logging
 
-logging.basicConfig(level=logging.INFO)
+# logging.getLogger('gp.AddAffinities').setLevel(logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
-shape = np.array ([200, 200, 200])  # z, y, x
+shape = np.array ([49, 49, 49])  # z, y, x
 
 def generate_data(num_batches):
 
@@ -22,28 +23,29 @@ def generate_data(num_batches):
 	raw_key = ArrayKey('RAW')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate((shape[0], shape[1], shape[2])) * voxel_size
-	raw_size = Coordinate((shape[0], shape[1]-1, shape[2]-1)) * voxel_size
+	input_size = Coordinate(s for s in shape) * voxel_size
+	aff_size = Coordinate(s-1 for s in shape) * voxel_size
 	output_size = Coordinate((shape[0]/2, shape[1]/2, shape[2]/2)) * voxel_size
 
 	print ("input_size: ", input_size)
+	print ("aff_size: ", aff_size)
 	print ("output_size: ", output_size)
 
 	request = BatchRequest()
-	request.add(labels_key, input_size)
-	request.add(input_affinities_key, raw_size)
-	request.add(joined_affinities_key, raw_size)
-	request.add(raw_key, raw_size)
+	# request.add(labels_key, input_size)
+	request.add(input_affinities_key, aff_size)
+	request.add(joined_affinities_key, aff_size)
+	# request.add(raw_key, aff_size)
 
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
-			shape=shape,
+			shape=input_size,
 			n_objects=50,
 			points_per_skeleton=5,
 			smoothness=2,
 			interpolation="linear") +
 		AddAffinities(
-			affinity_neighborhood=[[0, 0, -1], [0, -1, 0]],
+			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
 			labels=labels_key,
 			affinities=input_affinities_key) +
 		AddJoinedAffinities(

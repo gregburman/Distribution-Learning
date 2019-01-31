@@ -19,7 +19,6 @@ from nodes import AddRealism
 
 logging.basicConfig(level=logging.INFO)
 
-shape = np.array ([200, 200, 200])  # z, y, x
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
 def train_until(max_iteration):
@@ -33,6 +32,8 @@ def train_until(max_iteration):
 
 	with open('train/train_net.json', 'r') as f:
 		config = json.load(f)
+
+
 
 	# define array-keys
 	raw_key = ArrayKey('RAW')
@@ -67,7 +68,8 @@ def train_until(max_iteration):
 
 	train_pipeline = (
 		ToyNeuronSegmentationGenerator(
-			shape=shape,
+			shape=input_size,
+			array_key=labels_key,
 			n_objects=50,
 			points_per_skeleton=5,
 			smoothness=2,
@@ -142,7 +144,7 @@ def train_until(max_iteration):
 				pred_affinities_gradient_key: 'volumes/pred_affinities_gradient'
 			},
 			output_filename='train/batch_{iteration}.hdf',
-			every=200,
+			every=100,
 			dataset_dtypes={
 				raw_key: np.uint64,
 				labels_key: np.uint64

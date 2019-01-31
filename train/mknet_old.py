@@ -59,6 +59,7 @@ def create_network(input_shape, name):
 		epsilon=1e-8)
 	optimizer = opt.minimize(loss)
 
+	print "output before: ", output_shape
 	output_shape = output_shape[1:]
 	print("input shape : %s"%(input_shape,))
 	print("output shape: %s"%(output_shape,))
