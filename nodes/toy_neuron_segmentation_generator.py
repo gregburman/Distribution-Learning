@@ -44,10 +44,6 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 
 	def setup(self):
 		print "setup"
-		# if self.pos == -1:
-		# 	roi_size = tuple(_ for _ in self.shape)
-		# else:
-		# 	roi_size = (1, self.shape[1], self.shape[2])
 
 		roi_size = tuple(_ for _ in self.shape)
 		# print "self.array: ", self.array
@@ -59,38 +55,35 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 				voxel_size=(1, 1, 1)))
 
 	def provide(self, request):
-		# print "provide"
+		print "provide"
 		batch = gp.Batch()        
 
 		for (array_key, request_spec) in request.array_specs.items():
-			# print request
-
-			# print "request_spec roi: ", request_spec.roi
 			
 			array_spec = self.spec[array_key].copy()
-			# print "array_spec: ", array_spec
 			array_spec.roi = request_spec.roi
-
-			# shape = array_spec.roi.get_shape()/array_spec.voxel_size
-			# print ("shape: ", shape)
-
-			# if shape
-
-			# print "array_spec.roi: ", array_spec.roi
+			shape = array_spec.roi.get_shape()
+			
+			# enlarge
+			lshape = list(shape)
+			inc = [0]*len(shape)
+			for i, s in enumerate(shape):
+				if s % 2 != 0:
+					inc[i] += 1
+					lshape[i] += 1
+			shape = gp.Coordinate(lshape)
 
 			data = create_segmentation(
-				self.shape,
-				self.n_objects,
-				self.points_per_skeleton,
-				self.interpolation ,
-				self.smoothness)
+				shape=shape,
+				n_objects=self.n_objects,
+				points_per_skeleton=self.points_per_skeleton,
+				interpolation=self.interpolation ,
+				smoothness=self.smoothness)
 			segmentation = data["segmentation"]
 
-			# if self.pos > -1:
-			# 	segmentation = segmentation[np.newaxis, :, : ] + 1
-
-			# roi = request[self.input_affinities].roi
-			# batch.arrays[self.input_affinities] = batch.arrays[self.input_affinities].crop(roi)
+			# crop (more elegant & general way to do this?)
+			segmentation = segmentation[:lshape[0] - inc[0], :lshape[1] - inc[1], :lshape[2] - inc[2]]
+			# segmentation = segmentation[:lshape_out[i] - inc[i] for i in range(len(shape))]
 
 			batch.arrays[array_key] = gp.Array(segmentation, array_spec)
 
