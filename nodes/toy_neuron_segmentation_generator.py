@@ -31,11 +31,11 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 	smoothness: Controls the smoothness of the initial noise map used to generate object boundaries.
 	"""
 
-	def __init__(self, array_key, shape, n_objects, points_per_skeleton, smoothness, interpolation):
-		assert len(shape) == 3
+	def __init__(self, array_key, n_objects, points_per_skeleton, smoothness, interpolation):
+		# assert len(shape) == 3
 
 		self.array_key = array_key
-		self.shape = shape
+		# self.shape = shape
 		# self.pos = pos
 		self.n_objects = n_objects
 		self.points_per_skeleton = points_per_skeleton
@@ -45,13 +45,14 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 	def setup(self):
 		print "setup"
 
-		roi_size = tuple(_ for _ in self.shape)
+		# roi_size = tuple(_ for _ in self.shape)
 		# print "self.array: ", self.array
 		# print "roi: ", gp.Roi((0, 0, 0), roi_size)
 		self.provides(
 			self.array_key,
 			gp.ArraySpec(
-				roi=gp.Roi((0, 0, 0), roi_size),
+				# roi=gp.Roi((0, 0, 0), roi_size),
+				None,
 				voxel_size=(1, 1, 1)))
 
 	def provide(self, request):

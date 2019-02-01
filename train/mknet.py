@@ -10,14 +10,16 @@ def create_network(input_shape, output_shape, name):
 
 	tf.reset_default_graph()
 
-	raw = tf.placeholder(tf.float32, shape=input_shape) # for gp
-	raw_batched = tf.reshape(raw, (1, 1) + input_shape) # for tf
-	gt_affs_in = tf.placeholder(tf.float32, shape=(3, ) + input_shape) # gt_ffs input shape
-	gt_affs_in_batched = tf.reshape(gt_affs_in, (1, 3) + input_shape)
+	raw = tf.placeholder(tf.float32, shape=input_shape, name="raw") # for gp
+	raw_batched = tf.reshape(raw, (1, 1) + input_shape, name="raw_batched") # for tf
+	gt_affs_in = tf.placeholder(tf.uint8, shape=(3, ) + input_shape, name="gt_affs_in") # gt_ffs input shape
+	gt_affs_in_batched = tf.reshape(gt_affs_in, (1, 3) + input_shape, name="gt_affs_in_batched")
 	# gt_batched = tf.placeholder(tf.float32, shape = (1,3) + input_shape)
 
-	print "raw_batched: ", raw_batched
-	print "gt_batched: ", gt_affs_in_batched
+	print "name: ", raw.name
+
+	print "raw_batched: ", raw_batched.shape
+	print "gt_batched: ", gt_affs_in_batched.shape
 
 	unet, prior, posterior, f_comb = prob_unet.prob_unet(
 		fmaps_in=raw_batched,
@@ -43,15 +45,15 @@ def create_network(input_shape, output_shape, name):
 	print "output_shape_batched: ", output_shape_batched
 	output_shape = output_shape_batched[1:] # strip the batch dimension
 
-	affs = tf.reshape(affs_batched, output_shape)
-	gt_affs_out = tf.placeholder(tf.float32, shape=output_shape)
-	affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape)
+	pred_affs = tf.reshape(affs_batched, output_shape, name="pred_affs")
+	gt_affs_out = tf.placeholder(tf.float32, shape=output_shape, name="gt_affs_out")
+	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
 
 	sample_p = prob_unet.sample_z(prior)
 	sample_q = prob_unet.sample_z(posterior)
 
 	kl_loss = kl(sample_p, sample_q, 1)
-	ce_loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, affs, affs_loss_weights)
+	ce_loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_affs, pred_affs_loss_weights)
 	loss = ce_loss + beta * kl_loss
 
 	kl_summary = tf.summary.scalar('kl_loss', kl_loss)
@@ -74,9 +76,9 @@ def create_network(input_shape, output_shape, name):
 
 	config = {
 		'raw': raw.name,
-		'affs': affs.name,
-		'gt_affs': gt_affs_out.name,
-		'affs_loss_weights': affs_loss_weights.name,
+		'pred_affs': pred_affs.name,
+		'gt_affs_out': gt_affs_out.name,
+		'pred_affs_loss_weights': pred_affs_loss_weights.name,
 		'loss': loss.name,
 		'optimizer': optimizer.name,
 		'input_shape': input_shape,

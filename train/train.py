@@ -33,13 +33,13 @@ def train_until(max_iteration):
 	with open('train/train_net.json', 'r') as f:
 		config = json.load(f)
 
-
-
 	# define array-keys
-	raw_key = ArrayKey('RAW')
+	
 	labels_key = ArrayKey('GT_LABELS')
-	input_affinities_key = ArrayKey('GT_AFFINITIES')
+	input_affinities_key = ArrayKey('GT_AFFINITIES_IN')
+	output_affinities_key = ArrayKey('GT_AFFINITIES_OUT')
 	joined_affinities_key = ArrayKey('GT_JOINED_AFFINITIES')
+	raw_key = ArrayKey('RAW')
 	input_affinities_scale_key = ArrayKey('GT_AFFINITIES_SCALE')
 	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
 	pred_affinities_gradient_key = ArrayKey('AFFS_GRADIENT')
@@ -55,10 +55,17 @@ def train_until(max_iteration):
 
 	# define requests
 	request = BatchRequest()
-	request.add(raw_key, aff_size)
 	request.add(labels_key, input_size)
-	request.add(input_affinities_key, output_size)
-	request.add(joined_affinities_key, output_size)
+
+	request.add(input_affinities_key, aff_size)
+	request.add(output_affinities_key, output_size)
+	# request[input_affinities_key].roi = Roi((1,1,1), output_size)
+
+	request.add(joined_affinities_key, aff_size)
+
+	request.add(raw_key, aff_size)
+	# request[raw_key].roi = Roi((1,1,1), aff_size)
+	
 	request.add(input_affinities_scale_key, output_size)
 	request.add(pred_affinities_key, output_size)
 
@@ -89,6 +96,10 @@ def train_until(max_iteration):
             affinity_neighborhood=neighborhood,
             labels=labels_key,
             affinities=input_affinities_key) +
+        AddAffinities(
+            affinity_neighborhood=neighborhood,
+            labels=labels_key,
+            affinities=output_affinities_key) +
 		AddJoinedAffinities(
 			input_affinities=input_affinities_key,
 			joined_affinities=joined_affinities_key) +
@@ -98,7 +109,7 @@ def train_until(max_iteration):
 			sp=0.25,
 			sigma=1) +
 		BalanceLabels(
-			labels=input_affinities_key,
+			labels=output_affinities_key,
 			scales=input_affinities_scale_key) +
 		DefectAugment(
 			intensities=raw_key,
@@ -111,7 +122,7 @@ def train_until(max_iteration):
 			cache_size=40,
 			num_workers=10) +
 		Crop(
-			key=joined_affinities_key,
+			key=output_affinities_key,
 			roi=crop_roi) +
 		Train(
 			'train/train_net',
@@ -119,14 +130,14 @@ def train_until(max_iteration):
 			loss=config['loss'],
 			inputs={
 				config['raw']: raw_key,
-				config['gt_affs']: input_affinities_key,
-				config['affs_loss_weights']: input_affinities_scale_key
+				config['gt_affs_out']: output_affinities_key,
+				config['pred_affs_loss_weights']: input_affinities_scale_key
 			},
 			outputs={
-				config['affs']: pred_affinities_key
+				config['pred_affs']: pred_affinities_key
 			},
 			gradients={
-				config['affs']: pred_affinities_gradient_key
+				config['pred_affs']: pred_affinities_gradient_key
 			},
 			summary=config['summary'],
 			log_dir='log',

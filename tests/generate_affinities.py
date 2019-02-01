@@ -9,30 +9,28 @@ import logging
 # logging.getLogger('gunpowder.add_affinities').setLevel(logging.DEBUG)
 # logging.basicConfig(level=logging.DEBUG)
 
-shape = np.array ([300, 300, 300])  # z, y, x
+# shape = np.array ([50, 50, 50])  # z, y, x
 
 def generate_affinities(num_batches):
 
 	labels_key = ArrayKey('GT_LABELS')
-	affinities_key= ArrayKey('AFFINITIES')
+	input_affinities_key= ArrayKey('AFFINITIES_IN')
+	output_affinities_key= ArrayKey('AFFINITIES_OUT')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate(s for s in shape) * voxel_size
-	aff_size = Coordinate(s-2 for s in shape) * voxel_size
+	input_affinities_size = Coordinate((196,196,196)) * voxel_size
+	output_affinities_size = Coordinate((68,68,68)) * voxel_size
 
-	print ("input_size: ", input_size)
-	# print ("aff_size: ", aff_size)
+	print ("input_affinities_size: ", input_affinities_size)
+	print ("output_affinities_size: ", output_affinities_size)
 
 	request = BatchRequest()
-	# request.add(labels_key, input_size)
-	request.add(affinities_key, aff_size)
-
-	request[affinities_key].roi = Roi((1,1,1), aff_size)
+	request.add(input_affinities_key, input_affinities_size)
+	request.add(output_affinities_key, output_affinities_size)
 
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
-			shape=input_size,
 			n_objects=50,
 			points_per_skeleton=5,
 			smoothness=2,
@@ -40,12 +38,16 @@ def generate_affinities(num_batches):
 		AddAffinities(
 			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
 			labels=labels_key,
-			affinities=affinities_key) +
-		# RandomLocation()
+			affinities=input_affinities_key) +
+		AddAffinities(
+			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
+			labels=labels_key,
+			affinities=output_affinities_key) +
 		 Snapshot(
 		 	dataset_names={
 				labels_key: 'volumes/labels',
-				affinities_key: 'volumes/affinities'
+				input_affinities_key: 'volumes/affinities_in',
+				output_affinities_key: 'volumes/affinities_out'
 		 	},
 		 	output_filename="affinities.hdf",
 		 	every=1,
@@ -58,7 +60,6 @@ def generate_affinities(num_batches):
 	with build(pipeline) as p:
 		for i in range(num_batches):
 			req = p.request_batch(request)
-			# print ("request: ", req[labels_key].data)
 
 	print ("Data Generation Test finished.")
 
