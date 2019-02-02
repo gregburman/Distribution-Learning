@@ -16,24 +16,30 @@ import logging
 def generate_data(num_batches):
 
 	labels_key = ArrayKey('GT_LABELS')
-	input_affinities_key= ArrayKey('AFFINITIES')
+	input_affinities_key= ArrayKey('AFFINITIES_IN')
+	output_affinities_key= ArrayKey('AFFINITIES_OUT')
 	joined_affinities_key= ArrayKey('JOINED_AFFINITIES')
 	raw_key = ArrayKey('RAW')
 
 	voxel_size = Coordinate((1, 1, 1))
-	label_size = Coordinate((200,200,200)) * voxel_size
-	aff_size = Coordinate((200,200,200)) * voxel_size
-	raw_size = Coordinate((200,200,200)) * voxel_size
+	input_size = Coordinate((132,132,132)) * voxel_size
+	output_size = Coordinate((44,44,44)) * voxel_size
 
-	print ("label_size: ", label_size)
-	print ("aff_size: ", aff_size)
-	print ("raw_size: ", raw_size)
+	print ("input_size: ", input_size)
+	print ("output_size: ", output_size)
 
 	request = BatchRequest()
-	request.add(labels_key, label_size)
-	request.add(input_affinities_key, aff_size)
-	request.add(joined_affinities_key, aff_size)
-	request.add(raw_key, raw_size)
+	# request.add(labels_key, input_size)
+	request.add(input_affinities_key, input_size)
+	request.add(joined_affinities_key, input_size)
+	request.add(raw_key, input_size)
+	request.add(output_affinities_key, output_size)
+
+	# offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
+	# crop_roi = Roi(offset, output_size)
+	# print("crop_roi: ", crop_roi)
+
+	# print ("input_affinities_key: ", input_affinities_key)
 
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
@@ -46,6 +52,13 @@ def generate_data(num_batches):
 			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
 			labels=labels_key,
 			affinities=input_affinities_key) +
+		AddAffinities(
+			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
+			labels=labels_key,
+			affinities=output_affinities_key) +
+		# Crop(
+		# 	key=input_affinities_key,
+		# 	roi=crop_roi) 
 		AddJoinedAffinities(
 			input_affinities=input_affinities_key,
 			joined_affinities=joined_affinities_key) +
@@ -58,12 +71,14 @@ def generate_data(num_batches):
 		 	dataset_names={
 		 		raw_key: 'volumes/raw',
 				labels_key: 'volumes/labels',
-				joined_affinities_key: 'volumes/affinities'
+				input_affinities_key: 'volumes/affinities_in',
+				joined_affinities_key: 'volumes/affinities_joined',
+				output_affinities_key: 'volumes/affinities_out'
 		 	},
-		 	output_filename="data.hdf",
+		 	output_filename="data_{id}.hdf",
 		 	every=1,
 		 	dataset_dtypes={
-		 		raw_key: np.uint64,
+		 		raw_key: np.float32,
 				labels_key: np.uint64
 			}) +
 		 PrintProfilingStats(every=1)
@@ -72,8 +87,18 @@ def generate_data(num_batches):
 	with build(pipeline) as p:
 		for i in range(num_batches):
 			req = p.request_batch(request)
+			print ("data batch generated: ", i)
+			# print ("labels: ", req[labels_key].data.shape)
+			# print ("affinities_in: ", req[input_affinities_key].data.shape)
+			# print ("affinities_out: ", req[output_affinities_key].data.shape)
+			# print ("affinities_joined: ", req[joined_affinities_key].data.shape)
+			# print ("raw: ", req[raw_key].data.shape)
+			# # print ("raw: ", req[raw_key].data)
 
-	print ("Data Generation Test finished.")
+			# plt.imshow(req[raw_key].data[8], cmap="Greys_r")
+			# plt.show()
 
 if __name__ == "__main__":
+	print("Generating data...")
 	generate_data(num_batches=int(sys.argv[1]))
+	print ("Data generation test finished.")

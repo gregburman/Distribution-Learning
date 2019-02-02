@@ -18,8 +18,8 @@ def generate_affinities(num_batches):
 	output_affinities_key= ArrayKey('AFFINITIES_OUT')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_affinities_size = Coordinate((196,196,196)) * voxel_size
-	output_affinities_size = Coordinate((68,68,68)) * voxel_size
+	input_affinities_size = Coordinate((50,50,50)) * voxel_size
+	output_affinities_size = Coordinate((17,17,17)) * voxel_size
 
 	print ("input_affinities_size: ", input_affinities_size)
 	print ("output_affinities_size: ", output_affinities_size)
@@ -43,25 +43,26 @@ def generate_affinities(num_batches):
 			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
 			labels=labels_key,
 			affinities=output_affinities_key) +
-		 Snapshot(
-		 	dataset_names={
-				labels_key: 'volumes/labels',
-				input_affinities_key: 'volumes/affinities_in',
-				output_affinities_key: 'volumes/affinities_out'
-		 	},
-		 	output_filename="affinities.hdf",
-		 	every=1,
-		 	dataset_dtypes={
-				labels_key: np.uint64
-			}) +
+		 # Snapshot(
+		 # 	dataset_names={
+			# 	labels_key: 'volumes/labels',
+			# 	input_affinities_key: 'volumes/affinities_in',
+			# 	output_affinities_key: 'volumes/affinities_out'
+		 # 	},
+		 # 	output_filename="affinities.hdf",
+		 # 	every=1,
+		 # 	dataset_dtypes={
+			# 	labels_key: np.uint64
+			# }) +
 		 PrintProfilingStats(every=1)
 		)
 
 	with build(pipeline) as p:
 		for i in range(num_batches):
 			req = p.request_batch(request)
-
-	print ("Data Generation Test finished.")
+			print ("affs: dtype", req[input_affinities_key].data.dtype)
 
 if __name__ == "__main__":
+	print ("Generating affinities...")
 	generate_affinities(num_batches=int(sys.argv[1]))
+	print ("Affinities generation test finished.")

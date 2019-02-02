@@ -45,37 +45,28 @@ def train_until(max_iteration):
 	pred_affinities_gradient_key = ArrayKey('AFFS_GRADIENT')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate(s+1 for s in config['input_shape']) * voxel_size
-	aff_size = Coordinate(config['input_shape']) * voxel_size
+	input_size = Coordinate(config['input_shape']) * voxel_size
 	output_size = Coordinate(config['output_shape']) * voxel_size
 
 	print ("input_size: ", input_size)
-	print("aff_size",  aff_size)
 	print ("output_size: ", output_size)
 
 	# define requests
 	request = BatchRequest()
-	request.add(labels_key, input_size)
-
-	request.add(input_affinities_key, aff_size)
+	# request.add(labels_key, input_size) # TODO: why does adding this request cause a duplication of generations?
+	request.add(input_affinities_key, input_size)
+	request.add(joined_affinities_key, input_size)
+	request.add(raw_key, input_size)
 	request.add(output_affinities_key, output_size)
-	# request[input_affinities_key].roi = Roi((1,1,1), output_size)
-
-	request.add(joined_affinities_key, aff_size)
-
-	request.add(raw_key, aff_size)
-	# request[raw_key].roi = Roi((1,1,1), aff_size)
-	
 	request.add(input_affinities_scale_key, output_size)
 	request.add(pred_affinities_key, output_size)
 
-	offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
-	crop_roi = Roi(offset, output_size)
-	print("crop_roi: ", crop_roi)
+	# offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
+	# crop_roi = Roi(offset, output_size)
+	# print("crop_roi: ", crop_roi)
 
 	train_pipeline = (
 		ToyNeuronSegmentationGenerator(
-			shape=input_size,
 			array_key=labels_key,
 			n_objects=50,
 			points_per_skeleton=5,
@@ -119,17 +110,18 @@ def train_until(max_iteration):
 			axis=0) +
 		IntensityScaleShift(raw_key, 2,-1) +
 		PreCache(
-			cache_size=40,
-			num_workers=10) +
-		Crop(
-			key=output_affinities_key,
-			roi=crop_roi) +
+			cache_size=32,
+			num_workers=8) +
+		# Crop(
+			# key=output_affinities_key,
+			# roi=crop_roi) +
 		Train(
 			'train/train_net',
 			optimizer=config['optimizer'],
 			loss=config['loss'],
 			inputs={
 				config['raw']: raw_key,
+				config['gt_affs_in']: input_affinities_key,
 				config['gt_affs_out']: output_affinities_key,
 				config['pred_affs_loss_weights']: input_affinities_scale_key
 			},
@@ -139,7 +131,7 @@ def train_until(max_iteration):
 			gradients={
 				config['pred_affs']: pred_affinities_gradient_key
 			},
-			summary=config['summary'],
+			# summary=config['summary'],
 			log_dir='log',
 			save_every=100) +
 		IntensityScaleShift(
@@ -148,25 +140,31 @@ def train_until(max_iteration):
 			shift=0.5) +
 		Snapshot(
 			dataset_names={
-				raw_key: 'volumes/raw',
 				labels_key: 'volumes/labels/labels',
-				joined_affinities_key: 'volumes/joined_affinities',
+				input_affinities_key: 'volumes/input_affinities_key',
+				raw_key: 'volumes/raw',
 				pred_affinities_key: 'volumes/pred_affinities',
-				pred_affinities_gradient_key: 'volumes/pred_affinities_gradient'
+				output_affinities_key: 'volumes/output_affinities_key'
 			},
-			output_filename='train/batch_{iteration}.hdf',
-			every=100,
+			output_filename='batch_{iteration}.hdf',
+			every=1000,
 			dataset_dtypes={
-				raw_key: np.uint64,
+				raw_key: np.float32,
 				labels_key: np.uint64
 			}) + 
 		PrintProfilingStats(every=10)
 	)
 
 	print("Starting training...")
-	with build(train_pipeline) as b:
+	with build(train_pipeline) as p:
 		for i in range(max_iteration - trained_until):
-			b.request_batch(request)
+			req = p.request_batch(request)
+			# print ("labels: ", req[labels_key].data.shape)
+			# print ("affinities_in: ", req[input_affinities_key].data.shape)
+			# print ("affinities_out: ", req[output_affinities_key].data.shape)
+			# print ("affinities_joined: ", req[joined_affinities_key].data.shape)
+			# print ("raw: ", req[raw_key].data.shape)
+			# print ("affinities_in_scale: ", req[input_affinities_scale_key].data.shape)
 	print("Training finished")
 
 

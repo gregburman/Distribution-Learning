@@ -1,16 +1,7 @@
 import numpy as np
 import gunpowder as gp
 from gunpowder.nodes.batch_provider import BatchProvider
-from scipy.ndimage.filters import gaussian_filter
-import skimage.measure as measure
-# from skelerator import Tree, Skeleton
 from skelerator.forest import create_segmentation
-from scipy.ndimage.filters import maximum_filter
-from scipy.ndimage.morphology import distance_transform_edt
-import matplotlib.pyplot as plt
-from mahotas import cwatershed
-import traceback
-import sys
 
 class ToyNeuronSegmentationGenerator(BatchProvider):
 	"""
@@ -43,20 +34,14 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 		self.interpolation = interpolation
 
 	def setup(self):
-		print "setup"
 
-		# roi_size = tuple(_ for _ in self.shape)
-		# print "self.array: ", self.array
-		# print "roi: ", gp.Roi((0, 0, 0), roi_size)
 		self.provides(
 			self.array_key,
 			gp.ArraySpec(
-				# roi=gp.Roi((0, 0, 0), roi_size),
-				None,
+				roi=gp.Roi(offset=gp.Coordinate((-1000, -1000, -1000)), shape=gp.Coordinate((2000, 2000, 2000))),
 				voxel_size=(1, 1, 1)))
 
 	def provide(self, request):
-		print "provide"
 		batch = gp.Batch()        
 
 		for (array_key, request_spec) in request.array_specs.items():

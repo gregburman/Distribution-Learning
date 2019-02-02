@@ -2,4 +2,5 @@
 *.meta
 *.json
 log/
+notebooks/.ipynb_checkpoints/y
 snapshots/

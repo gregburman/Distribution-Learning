@@ -57,7 +57,8 @@ def prob_unet(
 
 	print ""
 
-	sample = sample_z(_posterior)
+	# sample = sample_z(_posterior)
+	sample = _posterior.sample()
 
 	_f_comb = f_comb(
 		features=_unet,
@@ -108,11 +109,11 @@ def prior(
 	mu = mu_log_sigma[:, :latent_dim]
 	log_sigma = mu_log_sigma[:, latent_dim:]
 
-	return (mu, log_sigma)
+	# return (mu, log_sigma)
 
-	# f_out = tfd.MultivariateNormalDiag(loc=mu, scale_diag=tf.exp(log_sigma))
-	# print "output: ", f_out.event_shape
-	# return f_out
+	f_out = tfd.MultivariateNormalDiag(loc=mu, scale_diag=tf.exp(log_sigma))
+	print "output: ", f_out.event_shape
+	return f_out
 
 
 def posterior(
@@ -163,11 +164,11 @@ def posterior(
 	log_sigma = mu_log_sigma[:, latent_dim:]
 	print mu_log_sigma.shape
 
-	return (mu, log_sigma)
+	# return (mu, log_sigma)
 
-	# f_out = tfd.MultivariateNormalDiag(loc=mu, scale_diag=tf.exp(log_sigma))
-	# print "output: ", f_out.event_shape
-	# return f_out
+	f_out = tfd.MultivariateNormalDiag(loc=mu, scale_diag=tf.exp(log_sigma))
+	print "output: ", f_out.event_shape
+	return f_out
 
 
 def encoder(
