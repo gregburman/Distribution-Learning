@@ -9,7 +9,7 @@ def create_network(input_shape, output_shape, name):
 
 	# beta = 1 stuck at loss=0.693147
 	# beta = 0.75 stuck at loss=0.693147
-	beta = 0.5
+	beta = 0.1
 
 	tf.reset_default_graph()
 
