@@ -36,6 +36,8 @@ class Encoder():
 		self.voxel_size = voxel_size
 		self.name = name
 
+		self.fmaps = None
+
 	def build(self):
 		print ("BUILD:", self.name)
 
@@ -103,7 +105,10 @@ class Encoder():
 
 		f_out = tfd.MultivariateNormalDiag(loc=mean, scale_diag=tf.exp(log_sigma))
 		print ("output   : ", f_out.event_shape)
-		return f_out
+		self.fmaps = f_out
+
+	def get_fmaps(self):
+		return self.fmaps
 
 
 if __name__ == "__main__":
@@ -127,6 +132,8 @@ if __name__ == "__main__":
 		voxel_size = (1, 1, 1),
 		name = "prior")
 	prior.build()
+	fmaps = prior.get_fmaps()
+	print ("fmaps: ", fmaps.event_shape)
 
 	print ("")
 
@@ -146,3 +153,5 @@ if __name__ == "__main__":
 		voxel_size = (1, 1, 1),
 		name = "posterior")
 	posterior.build()
+	fmaps = posterior.get_fmaps()
+	print ("fmaps: ", fmaps.event_shape)

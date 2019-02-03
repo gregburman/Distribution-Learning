@@ -3,7 +3,7 @@ import tensorflow as tf
 import helper
 
 
-class Unet():
+class UNet():
 
 	def __init__ (self,
 		fmaps_in,
@@ -34,6 +34,8 @@ class Unet():
 		self.upsample_type = upsample_type
 		self.voxel_size = voxel_size
 		self.name = "unet"
+
+		self.fmaps = None
 
 	def build(self):
 		print ("BUILD: ", self.name)
@@ -107,14 +109,17 @@ class Unet():
 
 		print ("fmaps_out: ", fmaps.shape)
 		
-		return fmaps
+		self.fmaps = fmaps
+
+	def get_fmaps(self):
+		return self.fmaps
 
 
 if __name__ == "__main__":
 
 	raw = tf.placeholder(tf.float32, (1,1,196,196,196))
 
-	unet = Unet(
+	unet = UNet(
 		fmaps_in = raw,
 		num_layers = 3,
 		base_channels = 12,
@@ -129,3 +134,5 @@ if __name__ == "__main__":
 		upsample_type = "conv_transpose",
 		voxel_size = (1, 1, 1))
 	unet.build()
+	fmaps = unet.get_fmaps()
+	print ("fmaps: ", fmaps.shape)
