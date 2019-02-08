@@ -276,7 +276,7 @@ def f_comb(
 	broadcast_sample = tf.tile(sample, multiples)
 	print "broadcast_sample: ", broadcast_sample.shape
 	features = tf.concat([features, broadcast_sample], axis=channel_axis)
-	print "features: ", features.shape
+	print "features concat: ", features.shape
 
 	# print "input: ", fmaps.shape
 	for conv_pass in range(num_1x1_convs):
