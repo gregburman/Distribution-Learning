@@ -77,13 +77,13 @@ if __name__ == "__main__":
 
 	f_comb = FComb(
 		fmaps_in = raw,
-		sample_in = sample,
 		num_classes = 3,
 		num_1x1_convs = 3,
 		num_channels = 12,
 		padding_type = 'valid',
 		activation_type = 'relu',
 		voxel_size = (1, 1, 1))
+	f_comb.set_sample(sample)
 	f_comb.build()
 	fmaps = f_comb.get_fmaps()
 	print ("fmaps: ", fmaps.shape)

@@ -104,17 +104,19 @@ class Encoder():
 		log_sigma = mu_log_sigma[:, self.latent_dims:]
 
 		f_out = tfd.MultivariateNormalDiag(loc=mean, scale_diag=tf.exp(log_sigma))
-		print ("output   : ", f_out.event_shape)
+		print ("output   : ", f_out)
 		self.fmaps = f_out
 
 	def get_fmaps(self):
 		return self.fmaps
 
+	def sample(self):
+		return self.fmaps.sample()
 
 if __name__ == "__main__":
 
-	raw = tf.placeholder(tf.float32, (1,1,196,196,196))
-	gt = tf.placeholder(tf.float32, (1,3, 196, 196, 196))
+	raw = tf.placeholder(tf.float32, (1,1,132,132,132))
+	gt = tf.placeholder(tf.float32, (1,3, 132, 132, 132))
 
 	prior = Encoder(
 		fmaps_in = raw,
@@ -132,8 +134,9 @@ if __name__ == "__main__":
 		voxel_size = (1, 1, 1),
 		name = "prior")
 	prior.build()
-	fmaps = prior.get_fmaps()
-	print ("fmaps: ", fmaps.event_shape)
+	print ("fmaps: ", prior.get_fmaps().event_shape)
+	print("sample: ", prior.sample().shape)
+
 
 	print ("")
 
@@ -153,5 +156,5 @@ if __name__ == "__main__":
 		voxel_size = (1, 1, 1),
 		name = "posterior")
 	posterior.build()
-	fmaps = posterior.get_fmaps()
-	print ("fmaps: ", fmaps.event_shape)
+	print ("fmaps: ", posterior.get_fmaps().event_shape)
+	print("sample: ", posterior.sample().shape)

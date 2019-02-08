@@ -117,14 +117,14 @@ class UNet():
 
 if __name__ == "__main__":
 
-	raw = tf.placeholder(tf.float32, (1,1,196,196,196))
+	raw = tf.placeholder(tf.float32, (1,1,132,132,132))
 
 	unet = UNet(
 		fmaps_in = raw,
 		num_layers = 3,
 		base_channels = 12,
 		channel_inc_factor = 3,
-		resample_factors = [[3,3,3], [2,2,2], [2,2,2]],
+		resample_factors = [[2,2,2], [2,2,2], [2,2,2]],
 		padding_type = "valid",
 		num_conv_passes = 2,
 		down_kernel_size = [3, 3, 3],

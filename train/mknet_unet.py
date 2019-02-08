@@ -1,7 +1,13 @@
+from __future__ import print_function
+import sys
+sys.path.append('../')
+
 import mala
 import tensorflow as tf
 import json
 import prob_unet
+
+from models.unet import UNet
 
 def create_network(input_shape, name):
 
@@ -10,21 +16,24 @@ def create_network(input_shape, name):
 	raw = tf.placeholder(tf.float32, shape=input_shape)
 	raw_batched = tf.reshape(raw, (1, 1) + input_shape)
 
-	# unet, _, _ = mala.networks.unet(
-	# 	fmaps_in=raw_batched,
-	# 	num_fmaps=12,
-	# 	fmap_inc_factors=3,
-	# 	downsample_factors=[[3,3,3],[2,2,2],[2,2,2]])
-
-	unet = prob_unet.unet(
-		fmaps_in=raw_batched,
-		num_layers=3,
-		base_num_fmaps=12,
-		fmap_inc_factor=3,
-		downsample_factors=[[2,2,2], [2,2,2], [2,2,2]])
+	unet = UNet(
+		fmaps_in = raw_batched,
+		num_layers = 3,
+		base_channels = 12,
+		channel_inc_factor = 3,
+		resample_factors = [[2,2,2], [2,2,2], [2,2,2]],
+		padding_type = "valid",
+		num_conv_passes = 2,
+		down_kernel_size = [3, 3, 3],
+		up_kernel_size = [3, 3, 3],
+		activation_type = "relu",
+		downsample_type = "max_pool",
+		upsample_type = "conv_transpose",
+		voxel_size = (1, 1, 1))
+	unet.build()
 
 	affs_batched, _ = mala.networks.conv_pass(
-		fmaps_in=unet,
+		fmaps_in=unet.get_fmaps(),
 		kernel_sizes=[1],
 		num_fmaps=3,
 		activation='sigmoid',
@@ -46,7 +55,6 @@ def create_network(input_shape, name):
 
 	summary = tf.summary.scalar('setup01_eucl_loss', loss)
 
-
 	# opt = tf.train.AdamOptimizer(
 	# 	learning_rate=0.5e-4,
 	# 	beta1=0.95,
@@ -55,7 +63,7 @@ def create_network(input_shape, name):
 	opt = tf.train.AdamOptimizer()
 	optimizer = opt.minimize(loss)
 
-	print "output before: ", output_shape
+	print ("output before: ", output_shape)
 	output_shape = output_shape[1:]
 	print("input shape : %s"%(input_shape,))
 	print("output shape: %s"%(output_shape,))
@@ -78,3 +86,17 @@ def create_network(input_shape, name):
 
 if __name__ == "__main__":
 	create_network((140, 140, 140), 'train_net')
+
+
+	# unet, _, _ = mala.networks.unet(
+	# 	fmaps_in=raw_batched,
+	# 	num_fmaps=12,
+	# 	fmap_inc_factors=3,
+	# 	downsample_factors=[[3,3,3],[2,2,2],[2,2,2]])
+
+	# unet = prob_unet.unet(
+	# 	fmaps_in=raw_batched,
+	# 	num_layers=3,
+	# 	base_num_fmaps=12,
+	# 	fmap_inc_factor=3,
+	# 	downsample_factors=[[2,2,2], [2,2,2], [2,2,2]])
