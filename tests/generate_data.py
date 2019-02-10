@@ -67,28 +67,35 @@ def generate_data(num_batches):
 		 	raw=raw_key,
 		 	sp=0.25,
 		 	sigma=1) +
-		 Snapshot(
-		 	dataset_names={
-		 		raw_key: 'volumes/raw',
-				labels_key: 'volumes/labels',
-				input_affinities_key: 'volumes/affinities_in',
-				joined_affinities_key: 'volumes/affinities_joined',
-				output_affinities_key: 'volumes/affinities_out'
-		 	},
-		 	output_filename="data_{id}.hdf",
-		 	every=1,
-		 	dataset_dtypes={
-		 		raw_key: np.float32,
-				labels_key: np.uint64
-			}) +
+		 # Snapshot(
+		 # 	dataset_names={
+		 # 		raw_key: 'volumes/raw',
+			# 	labels_key: 'volumes/labels',
+			# 	input_affinities_key: 'volumes/affinities_in',
+			# 	joined_affinities_key: 'volumes/affinities_joined',
+			# 	output_affinities_key: 'volumes/affinities_out'
+		 # 	},
+		 # 	output_filename="data_{id}.hdf",
+		 # 	every=1,
+		 # 	dataset_dtypes={
+		 # 		raw_key: np.float32,
+			# 	labels_key: np.uint64
+			# }) +
 		 PrintProfilingStats(every=1)
 		)
 
+	hashes = []
 	with build(pipeline) as p:
 		for i in range(num_batches):
 			req = p.request_batch(request)
-			print ("data batch generated: ", i)
-			# print ("labels: ", req[labels_key].data.shape)
+			label_hash = np.sum(req[labels_key].data)
+			print ("data batch generated:", i, ", label_hash:", label_hash)
+			if label_hash in hashes:
+				print ("DUPLICATE")
+			else:
+				hashes.append(label_hash)
+			break
+			# print ("labels shape: ", req[labels_key].data.shape)
 			# print ("affinities_in: ", req[input_affinities_key].data.shape)
 			# print ("affinities_out: ", req[output_affinities_key].data.shape)
 			# print ("affinities_joined: ", req[joined_affinities_key].data.shape)

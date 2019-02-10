@@ -13,9 +13,9 @@ from models.f_comb import FComb
 
 def create_network(input_shape, output_shape, name):
 
-	# beta = 1 stuck at loss=0.693147
-	# beta = 0.75 stuck at loss=0.693147
-	beta = 0.1
+	# beta = 1 stuck at loss=0.693147 (SCE)
+	# beta = 0.75 stuck at loss=0.693147 (SCE)
+	beta = 1
 
 	tf.reset_default_graph()
 
@@ -125,9 +125,9 @@ def create_network(input_shape, output_shape, name):
 	sample_q = posterior.get_fmaps()
 
 	kl_loss = tf.distributions.kl_divergence(sample_p, sample_q)
-	ce_loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_affs, pred_affs_loss_weights)
-	# mse_loss = tf.losses.mean_squared_error(	gt_affs_out, 	pred_affs, pred_affs_loss_weights)
-	loss = ce_loss + beta * kl_loss
+	# ce_loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_affs, pred_affs_loss_weights)
+	mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
+	loss = mse_loss + beta * kl_loss
 	# summary = tf.summary.scalar('loss', loss)
 
 	# kl_summary = tf.summary.scalar('kl_loss', kl_loss)

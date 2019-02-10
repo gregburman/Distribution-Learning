@@ -104,7 +104,7 @@ class Encoder():
 		log_sigma = mu_log_sigma[:, self.latent_dims:]
 
 		f_out = tfd.MultivariateNormalDiag(loc=mean, scale_diag=tf.exp(log_sigma))
-		print ("output   : ", f_out)
+		print ("output   : ", f_out.event_shape)
 		self.fmaps = f_out
 
 	def get_fmaps(self):

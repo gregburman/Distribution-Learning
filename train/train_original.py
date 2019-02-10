@@ -34,7 +34,6 @@ def train_until(max_iteration):
 		config = json.load(f)
 
 	# define array-keys
-	
 	labels_key = ArrayKey('GT_LABELS')
 	input_affinities_key = ArrayKey('GT_AFFINITIES_IN')
 	output_affinities_key = ArrayKey('GT_AFFINITIES_OUT')
@@ -121,17 +120,17 @@ def train_until(max_iteration):
 			loss=config['loss'],
 			inputs={
 				config['raw']: raw_key,
-				config['gt_affs_in']: input_affinities_key,
-				config['gt_affs_out']: output_affinities_key,
-				config['pred_affs_loss_weights']: input_affinities_scale_key
+				# config['gt_affs_in']: input_affinities_key,
+				config['gt_affs']: output_affinities_key,
+				config['affs_loss_weights']: input_affinities_scale_key
 			},
 			outputs={
-				config['pred_affs']: pred_affinities_key
+				config['affs']: pred_affinities_key
 			},
 			gradients={
-				config['pred_affs']: pred_affinities_gradient_key
+				config['affs']: pred_affinities_gradient_key
 			},
-			# summary=config['summary'],
+			summary=config['summary'],
 			log_dir='log',
 			save_every=100) +
 		IntensityScaleShift(
@@ -155,10 +154,18 @@ def train_until(max_iteration):
 		PrintProfilingStats(every=20)
 	)
 
+	hashes = []
 	print("Starting training...")
 	with build(train_pipeline) as p:
 		for i in range(max_iteration - trained_until):
 			req = p.request_batch(request)
+			label_hash = np.sum(req[labels_key].data)
+			# logger.info("data batch generated:" + str(i+1) + ", label_hash:" + str(label_hash))
+			# if label_hash in hashes:
+			# 	logger.info("DUPLICATE: " + str(label_hash))
+			# 	break
+			# else:
+			# 	hashes.append(label_hash)
 			# print ("labels: ", req[labels_key].data.shape)
 			# print ("affinities_in: ", req[input_affinities_key].data.shape)
 			# print ("affinities_out: ", req[output_affinities_key].data.shape)
