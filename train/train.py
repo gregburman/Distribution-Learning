@@ -16,7 +16,6 @@ from nodes import ToyNeuronSegmentationGenerator
 from nodes import AddJoinedAffinities
 from nodes import AddRealism
 
-
 logging.basicConfig(level=logging.INFO)
 
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
@@ -39,39 +38,41 @@ def train_until(max_iteration):
 	input_affinities_key = ArrayKey('GT_AFFINITIES_IN')
 	output_affinities_key = ArrayKey('GT_AFFINITIES_OUT')
 	joined_affinities_key = ArrayKey('GT_JOINED_AFFINITIES')
+	raw_affinities_key = ArrayKey('RAW_AFFINITIES_KEY')
 	raw_key = ArrayKey('RAW')
 	input_affinities_scale_key = ArrayKey('GT_AFFINITIES_SCALE')
 	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
 	pred_affinities_gradient_key = ArrayKey('AFFS_GRADIENT')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate(config['input_shape']) * voxel_size
-	output_size = Coordinate(config['output_shape']) * voxel_size
+	input_shape = Coordinate(config['input_shape']) * voxel_size
+	output_shape = Coordinate(config['output_shape']) * voxel_size
 
-	print ("input_size: ", input_size)
-	print ("output_size: ", output_size)
+	print ("input_shape: ", input_shape)
+	print ("output_shape: ", output_shape)
 
 	# define requests
 	request = BatchRequest()
-	# request.add(labels_key, input_size) # TODO: why does adding this request cause a duplication of generations?
-	request.add(input_affinities_key, input_size)
-	request.add(joined_affinities_key, input_size)
-	request.add(raw_key, input_size)
-	request.add(output_affinities_key, output_size)
-	request.add(input_affinities_scale_key, output_size)
-	request.add(pred_affinities_key, output_size)
+	# request.add(labels_key, input_shape) # TODO: why does adding this request cause a duplication of generations?
+	request.add(input_affinities_key, input_shape)
+	request.add(joined_affinities_key, input_shape)
+	request.add(raw_affinities_key, input_shape)
+	request.add(raw_key, input_shape)
+	request.add(output_affinities_key, output_shape)
+	request.add(input_affinities_scale_key, output_shape)
+	request.add(pred_affinities_key, output_shape)
 
-	# offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
-	# crop_roi = Roi(offset, output_size)
+	# offset = Coordinate((input_shape[i]-output_shape[i])/2 for i in range(len(input_shape)))
+	# crop_roi = Roi(offset, output_shape)
 	# print("crop_roi: ", crop_roi)
 
-	train_pipeline = (
+	pipeline = (
 		ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
 			n_objects=50,
-			points_per_skeleton=5,
-			smoothness=2,
-			interpolation="linear") + 
+			points_per_skeleton=8,
+			smoothness=3,
+			interpolation="random") + 
 		# ElasticAugment(
 		# 	control_point_spacing=[4,40,40],
 		# 	jitter_sigma=[0,2,2],
@@ -82,7 +83,11 @@ def train_until(max_iteration):
 		# 	subsample=8) +
 		# SimpleAugment(transpose_only=[1, 2]) +
 		# IntensityAugment(labels, 0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
-		# GrowBoundary(labels, labels_mask, steps=1, only_xy=True) +
+		AddAffinities(
+            affinity_neighborhood=neighborhood,
+            labels=labels_key,
+            affinities=raw_affinities_key) +
+		GrowBoundary(labels_key, steps=1, only_xy=True) +
         AddAffinities(
             affinity_neighborhood=neighborhood,
             labels=labels_key,
@@ -92,12 +97,12 @@ def train_until(max_iteration):
             labels=labels_key,
             affinities=output_affinities_key) +
 		AddJoinedAffinities(
-			input_affinities=input_affinities_key,
+			input_affinities=raw_affinities_key,
 			joined_affinities=joined_affinities_key) +
 		AddRealism(
 			joined_affinities = joined_affinities_key,
 			raw = raw_key,
-			sp=0.25,
+			sp=0.65,
 			sigma=1) +
 		BalanceLabels(
 			labels=output_affinities_key,
@@ -110,13 +115,13 @@ def train_until(max_iteration):
 			axis=0) +
 		IntensityScaleShift(raw_key, 2,-1) +
 		PreCache(
-			cache_size=32,
-			num_workers=8) +
+			cache_size=28,
+			num_workers=7) +
 		# Crop(
 			# key=output_affinities_key,
 			# roi=crop_roi) +
 		Train(
-			'train/train_net',
+			meta_graph_filename='train/train_net',
 			optimizer=config['optimizer'],
 			loss=config['loss'],
 			inputs={
@@ -131,9 +136,9 @@ def train_until(max_iteration):
 			gradients={
 				config['pred_affs']: pred_affinities_gradient_key
 			},
-			# summary=config['summary'],
+			summary=config['summary'],
 			log_dir='log',
-			save_every=100) +
+			save_every=20) +
 		IntensityScaleShift(
 			array=raw_key,
 			scale=0.5,
@@ -156,7 +161,7 @@ def train_until(max_iteration):
 	)
 
 	print("Starting training...")
-	with build(train_pipeline) as p:
+	with build(pipeline) as p:
 		for i in range(max_iteration - trained_until):
 			req = p.request_batch(request)
 			# print ("labels: ", req[labels_key].data.shape)

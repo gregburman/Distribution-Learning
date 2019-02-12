@@ -1,105 +1,89 @@
 from __future__ import print_function
+import sys
+sys.path.append('../')
+
 from gunpowder import *
 from gunpowder.tensorflow import *
 import json
 import logging
 import numpy as np
 import os
-import sys
+
+from nodes import ToyNeuronSegmentationGenerator
+from nodes import AddJoinedAffinities
+from nodes import AddRealism
+
+ logging.basicConfig(level=logging.INFO)
 
 setup_dir = os.path.dirname(os.path.realpath(__file__))
 
-with open(os.path.join(setup_dir, 'config.json'), 'r') as f:
-    net_config = json.load(f)
+with open(os.path.join(setup_dir, 'train_net.json'), 'r') as f:
+	config = json.load(f)
 
-# voxels
-input_shape = Coordinate(net_config['input_shape'])
-output_shape = Coordinate(net_config['output_shape'])
+print ("net config: ", config)
+
+voxel_size = Coordinate((1, 1, 1))
+input_shape = Coordinate(config['input_shape']) * voxel_size
+output_shape = Coordinate(config['output_shape']) * voxel_size
 context = (input_shape - output_shape)//2
-print("Context is %s"%(context,))
 
-# nm
-voxel_size = Coordinate((40, 4, 4))
-context_nm = context*voxel_size
-input_size = input_shape*voxel_size
-output_size = output_shape*voxel_size
+print ("input_size: ", input_shape)
+print ("output_size: ", output_shape)
+print ("context: ", context)
 
 def predict(
-        iteration,
-        in_file,
-        raw_dataset,
-        read_roi,
-        out_file,
-        out_dataset):
+	iteration,
+	in_file,
+	raw_dataset,
+	read_roi,
+	out_file,
+	out_dataset):
 
-    raw = ArrayKey('RAW')
-    affs = ArrayKey('AFFS')
+	labels_key = ArrayKey('GT_LABELS')
+	joined_affinities_key = ArrayKey('GT_JOINED_AFFINITIES')
+	raw_affinities_key = ArrayKey('RAW_AFFINITIES_KEY')
+	raw_key = ArrayKey('RAW')
+	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
 
-    chunk_request = BatchRequest()
-    chunk_request.add(raw, input_size)
-    chunk_request.add(affs, output_size)
+	pipeline = (
+		ToyNeuronSegmentationGenerator(
+			array_key=labels_key,
+			n_objects=50,
+			points_per_skeleton=8,
+			smoothness=3,
+			interpolation="random") +
+		AddAffinities(
+			affinity_neighborhood=neighborhood,
+			labels=labels_key,
+			affinities=raw_affinities_key) +
+		AddJoinedAffinities(
+			input_affinities=raw_affinities_key,
+			joined_affinities=joined_affinities_key) +
+		AddRealism(
+			joined_affinities = joined_affinities_key,
+			raw = raw_key,
+			sp=0.65,
+			sigma=1) +
+		Pad(raw_key, size=None) +
+		Crop(raw_key, read_roi) +
+		Normalize(raw_key) +
+		IntensityScaleShift(raw_key, 2,-1) +
+		Predict(
+			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
+			inputs={
+				config['raw']: raw_key
+			},
+			outputs={
+				config['affs']: pred_affinities_key
+			},
+			graph=os.path.join(setup_dir, 'train_net.meta')
+		) +
+		PrintProfilingStats(every=10)
+	)
 
-    pipeline = (
-        ZarrSource(
-            in_file,
-            datasets = {
-                raw: raw_dataset
-            },
-            array_specs = {
-                raw: ArraySpec(interpolatable=True),
-            }
-        ) +
-        Pad(raw, size=None) +
-        Crop(raw, read_roi) +
-        Normalize(raw) +
-        IntensityScaleShift(raw, 2,-1) +
-        Predict(
-            os.path.join(setup_dir, 'train_net_checkpoint_%d'%iteration),
-            inputs={
-                net_config['raw']: raw
-            },
-            outputs={
-                net_config['affs']: affs
-            },
-            graph=os.path.join(setup_dir, 'config.meta')
-        ) +
-        IntensityScaleShift(affs, 255, 0) +
-        ZarrWrite(
-            dataset_names={
-                affs: out_dataset,
-            },
-            output_filename=out_file
-        ) +
-        PrintProfilingStats(every=10) +
-        Scan(chunk_request, num_workers=10)
-    )
-
-    print("Starting prediction...")
-    with build(pipeline):
-        pipeline.request_batch(BatchRequest())
-    print("Prediction finished")
+	print("Starting prediction...")
+	with build(pipeline) as p:
+		p.request_batch(BatchRequest())
+	print("Prediction finished")
 
 if __name__ == "__main__":
-
-    logging.basicConfig(level=logging.INFO)
-    logging.getLogger('gunpowder.nodes.hdf5like_write_base').setLevel(logging.DEBUG)
-
-    config_file = sys.argv[1]
-    with open(config_file, 'r') as f:
-        run_config = json.load(f)
-
-    read_roi = Roi(
-        run_config['read_begin'],
-        run_config['read_size'])
-    write_roi = read_roi.grow(-context_nm, -context_nm)
-
-    print("Read ROI in nm is %s"%read_roi)
-    print("Write ROI in nm is %s"%write_roi)
-
-    predict(
-        run_config['iteration'],
-        run_config['in_file'],
-        run_config['in_dataset'],
-        read_roi,
-        run_config['out_file'],
-        run_config['out_dataset'])

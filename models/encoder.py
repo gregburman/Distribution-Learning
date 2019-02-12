@@ -93,7 +93,7 @@ class Encoder():
 		mu_log_sigma = tf.layers.conv3d(
 			inputs = encoding,
 			filters = self.latent_dims * 2,
-			kernel_size = 1,
+			kernel_size = 1, 	
 			padding = self.padding_type,
 			data_format = "channels_first",
 			activation = self.activation_type,

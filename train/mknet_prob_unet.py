@@ -11,12 +11,9 @@ from models.encoder import Encoder
 from models.f_comb import FComb
 
 
-def create_network(input_shape, output_shape, name):
+def create_network(input_shape, name):
 
-	# beta = 1 stuck at loss=0.693147 (SCE)
-	# beta = 0.75 stuck at loss=0.693147 (SCE)
-	beta = 1
-
+	beta = 1e-6
 	tf.reset_default_graph()
 
 	raw = tf.placeholder(tf.float32, shape=input_shape, name="raw") # for gp
@@ -27,17 +24,6 @@ def create_network(input_shape, output_shape, name):
 	print ("raw_batched: ", raw_batched.shape)
 	print ("gt_affs_in_batched: "), gt_affs_in_batched.shape
 	print ("")
-
-	# unet, prior, posterior, f_comb = prob_unet.prob_unet(
-	# 	fmaps_in=raw_batched,
-	# 	affmaps_in=gt_affs_in_batched,
-	# 	num_layers=3,
-	# 	num_classes=3,
-	# 	latent_dim=6,
-	# 	base_num_fmaps=12,
-	# 	fmap_inc_factor=3,
-	# 	downsample_factors=[[2,2,2], [2,2,2], [2,2,2]],
-	# 	num_1x1_convs=3)
 
 	unet = UNet(
 		fmaps_in = raw_batched,
@@ -63,7 +49,7 @@ def create_network(input_shape, output_shape, name):
 		latent_dims = 6,
 		base_channels = 12,
 		channel_inc_factor = 3,
-		downsample_factors = [[3,3,3], [2,2,2], [2,2,2]],
+		downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
 		padding_type = "valid",
 		num_conv_passes = 2,
 		down_kernel_size = [3, 3, 3],
@@ -81,7 +67,7 @@ def create_network(input_shape, output_shape, name):
 		latent_dims = 6,
 		base_channels = 12,
 		channel_inc_factor = 3,
-		downsample_factors = [[3,3,3], [2,2,2], [2,2,2]],
+		downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
 		padding_type = "valid",
 		num_conv_passes = 2,
 		down_kernel_size = [3, 3, 3],
@@ -125,14 +111,18 @@ def create_network(input_shape, output_shape, name):
 	sample_q = posterior.get_fmaps()
 
 	kl_loss = tf.distributions.kl_divergence(sample_p, sample_q)
+	kl_loss = tf.reshape(kl_loss, [])
 	# ce_loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_affs, pred_affs_loss_weights)
 	mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
 	loss = mse_loss + beta * kl_loss
+	print ("kl_loss: ", kl_loss)
+	print ("kl_loss: ", kl_loss.shape)
 	# summary = tf.summary.scalar('loss', loss)
 
-	# kl_summary = tf.summary.scalar('kl_loss', kl_loss)
-	# ce_summary = tf.summary.scalar('ce_loss', ce_loss)
-	# summary = tf.summary.scalar(['loss'], loss)
+	tf.summary.scalar('kl_loss', kl_loss)
+	tf.summary.scalar('mse_loss', mse_loss)
+	summary = tf.summary.merge_all()
+
 
 	# opt = tf.train.AdamOptimizer(
 	# 	learning_rate=1e-6,
@@ -158,7 +148,7 @@ def create_network(input_shape, output_shape, name):
 		'optimizer': optimizer.name,
 		'input_shape': input_shape,
 		'output_shape': output_shape,
-		# 'summary': summary.name,
+		'summary': summary.name,
 	}
 	with open(name + '.json', 'w') as f:
 		json.dump(config, f)
@@ -175,4 +165,4 @@ def create_network(input_shape, output_shape, name):
 # 	return log_q - log_p
 
 if __name__ == "__main__":
-	create_network((132, 132, 132), (44, 44, 44), 'train_net') # shape -1 
+	create_network((196, 196, 196), 'train_net') # shape -1 

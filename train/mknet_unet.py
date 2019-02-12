@@ -4,6 +4,8 @@ sys.path.append('../')
 
 import tensorflow as tf
 import json
+import mala
+import prob_unet
 
 from models.unet import UNet
 
@@ -58,7 +60,7 @@ def create_network(input_shape, name):
 	# 	beta1=0.95,
 	# 	beta2=0.999,
 	# 	epsilon=1e-8)
-	opt = tf.train.AdamOptimizer(learning_rate=0.5e-3)
+	opt = tf.train.AdamOptimizer()
 	optimizer = opt.minimize(loss)
 
 	print ("output before: ", output_shape)
@@ -83,7 +85,7 @@ def create_network(input_shape, name):
 		json.dump(config, f)
 
 if __name__ == "__main__":
-	create_network((132, 132, 132), 'train_net')
+	create_network((140, 140, 140), 'train_net')
 
 
 	# unet, _, _ = mala.networks.unet(

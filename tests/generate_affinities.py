@@ -18,8 +18,8 @@ def generate_affinities(num_batches):
 	output_affinities_key= ArrayKey('AFFINITIES_OUT')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_affinities_size = Coordinate((50,50,50)) * voxel_size
-	output_affinities_size = Coordinate((17,17,17)) * voxel_size
+	input_affinities_size = Coordinate((132,132,132)) * voxel_size
+	output_affinities_size = Coordinate((44,44,44)) * voxel_size
 
 	print ("input_affinities_size: ", input_affinities_size)
 	print ("output_affinities_size: ", output_affinities_size)
@@ -39,10 +39,10 @@ def generate_affinities(num_batches):
 			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
 			labels=labels_key,
 			affinities=input_affinities_key) +
-		AddAffinities(
-			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-			labels=labels_key,
-			affinities=output_affinities_key) +
+		# AddAffinities(
+		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
+		# 	labels=labels_key,
+		# 	affinities=output_affinities_key) +
 		 # Snapshot(
 		 # 	dataset_names={
 			# 	labels_key: 'volumes/labels',
