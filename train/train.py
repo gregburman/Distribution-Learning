@@ -4,7 +4,6 @@ sys.path.append('../')
 
 from gunpowder import *
 from gunpowder.tensorflow import *
-import malis
 import os
 import math
 import json
@@ -20,13 +19,13 @@ logging.basicConfig(level=logging.INFO)
 
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
-def train_until(max_iteration):
+def train(iterations):
 
 	if tf.train.latest_checkpoint('.'):
 		trained_until = int(tf.train.latest_checkpoint('.').split('_')[-1])
 	else:
 		trained_until = 0
-	if trained_until >= max_iteration:
+	if trained_until >= iterations:
 		return
 
 	with open('train/train_net.json', 'r') as f:
@@ -121,7 +120,7 @@ def train_until(max_iteration):
 			# key=output_affinities_key,
 			# roi=crop_roi) +
 		Train(
-			meta_graph_filename='train/train_net',
+			graph='train/train_net',
 			optimizer=config['optimizer'],
 			loss=config['loss'],
 			inputs={
@@ -146,13 +145,13 @@ def train_until(max_iteration):
 		Snapshot(
 			dataset_names={
 				labels_key: 'volumes/labels/labels',
-				input_affinities_key: 'volumes/input_affinities_key',
+				input_affinities_key: 'volumes/input_affs',
 				raw_key: 'volumes/raw',
-				pred_affinities_key: 'volumes/pred_affinities',
-				output_affinities_key: 'volumes/output_affinities_key'
+				pred_affinities_key: 'volumes/pred_affs',
+				output_affinities_key: 'volumes/output_affs'
 			},
-			output_filename='batch_{iteration}.hdf',
-			every=100,
+			output_filename='train/batch_{iteration}.hdf',
+			every=1,
 			dataset_dtypes={
 				raw_key: np.float32,
 				labels_key: np.uint64
@@ -162,7 +161,7 @@ def train_until(max_iteration):
 
 	print("Starting training...")
 	with build(pipeline) as p:
-		for i in range(max_iteration - trained_until):
+		for i in range(iterations - trained_until):
 			req = p.request_batch(request)
 			# print ("labels: ", req[labels_key].data.shape)
 			# print ("affinities_in: ", req[input_affinities_key].data.shape)
@@ -172,7 +171,5 @@ def train_until(max_iteration):
 			# print ("affinities_in_scale: ", req[input_affinities_scale_key].data.shape)
 	print("Training finished")
 
-
 if __name__ == "__main__":
-	iteration = int(sys.argv[1])
-	train_until(iteration)
+	train(iterations=int(sys.argv[1]))

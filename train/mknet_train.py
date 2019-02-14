@@ -99,6 +99,10 @@ def create_network(input_shape, name):
 		name="affs")
 	print ("")
 
+	
+	# tf.add_to_collection('unet', prior)
+	# tf.add_to_collection('unet', f_comb)
+
 	output_shape_batched = affs_batched.get_shape().as_list()
 	print ("output_shape_batched: "), output_shape_batched
 	output_shape = output_shape_batched[1:] # strip the batch dimension
@@ -136,6 +140,9 @@ def create_network(input_shape, name):
 	print("input shape : %s"%(input_shape,))
 	print("output shape: %s"%(output_shape,))
 
+	# tf.add_to_collection("unet", unet.get_fmaps())
+	# tf.add_to_collection("prior", prior.get_fmaps())
+	# tf.add_to_collection("f_comb", f_comb.get_fmaps())
 	tf.train.export_meta_graph(filename=name + '.meta')
 
 	config = {
@@ -165,4 +172,4 @@ def create_network(input_shape, name):
 # 	return log_q - log_p
 
 if __name__ == "__main__":
-	create_network((196, 196, 196), 'train_net') # shape -1 
+	create_network((132, 132, 132), 'train_net')
