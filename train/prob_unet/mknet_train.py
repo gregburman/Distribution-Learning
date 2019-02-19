@@ -1,6 +1,6 @@
 from __future__ import print_function
 import sys
-sys.path.append('../')
+sys.path.append('../../')
 
 import tensorflow as tf
 from  tensorflow_probability import distributions as tfd
@@ -13,7 +13,7 @@ from models.f_comb import FComb
 
 def create_network(input_shape, name):
 
-	beta = 0
+	beta = 1e6
 	tf.reset_default_graph()
 
 	raw = tf.placeholder(tf.float32, shape=input_shape, name="raw") # for gp

@@ -1,6 +1,6 @@
 from __future__ import print_function
 import sys
-sys.path.append('../')
+sys.path.append('../../')
 
 import tensorflow as tf
 from  tensorflow_probability import distributions as tfd
@@ -82,7 +82,8 @@ def create_network(input_shape, name):
 	print ("output_shape_batched: ", output_shape_batched)
 	output_shape = output_shape_batched[1:] # strip the batch dimension
 
-	pred_affs = tf.reshape(affs_batched, output_shape, name="pred_affs")
+	pred_affs_1 = tf.reshape(affs_batched, output_shape, name="pred_affs_1")
+	pred_affs_2 = tf.reshape(affs_batched, output_shape, name="pred_affs_2")
 
 	output_shape = output_shape[1:]
 	print("input shape : %s"%(input_shape,))
@@ -92,7 +93,8 @@ def create_network(input_shape, name):
 
 	config = {
 		'raw': raw.name,
-		'pred_affs': pred_affs.name,
+		'pred_affs_1': pred_affs_1.name,
+		'pred_affs_2': pred_affs_2.name,
 		'input_shape': input_shape,
 		'output_shape': output_shape,
 	}

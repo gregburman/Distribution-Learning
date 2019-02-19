@@ -4,5 +4,5 @@
 log/
 notebooks/.ipynb_checkpoints/y
 snapshots/
-train/checkpoint
-train/train_net_checkpoint*
+*checkpoint
+*train_net_checkpoint*

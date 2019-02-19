@@ -28,7 +28,7 @@ def train(iterations):
 	if trained_until >= iterations:
 		return
 
-	with open('train/train_net.json', 'r') as f:
+	with open('train/prob_unet/train_net.json', 'r') as f:
 		config = json.load(f)
 
 	# define array-keys
@@ -120,7 +120,7 @@ def train(iterations):
 			# key=output_affinities_key,
 			# roi=crop_roi) +
 		Train(
-			graph='train/train_net',
+			graph='train/prob_unet/train_net',
 			optimizer=config['optimizer'],
 			loss=config['loss'],
 			inputs={
@@ -150,7 +150,7 @@ def train(iterations):
 				pred_affinities_key: 'volumes/pred_affs',
 				output_affinities_key: 'volumes/output_affs'
 			},
-			output_filename='train/batch_{iteration}.hdf',
+			output_filename='prob_unet/train/batch_{iteration}.hdf',
 			every=50,
 			dataset_dtypes={
 				raw_key: np.float32,

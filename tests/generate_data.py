@@ -72,7 +72,7 @@ def generate_data(num_batches):
 		 AddRealism(
 		 	joined_affinities=joined_affinities_key,
 		 	raw=raw_key,
-		 	sp=0.65,
+		 	sp=0.4,
 		 	sigma=1) +
 		 Snapshot(
 		 	dataset_names={

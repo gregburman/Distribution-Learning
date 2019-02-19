@@ -30,7 +30,8 @@ def predict(iteration):
 	joined_affinities_key = ArrayKey('GT_JOINED_AFFINITIES')
 	raw_affinities_key = ArrayKey('RAW_AFFINITIES_KEY')
 	raw_key = ArrayKey('RAW')
-	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
+	pred_affinities_1_key = ArrayKey('PREDICTED_AFFS_1')
+	pred_affinities_2_key = ArrayKey('PREDICTED_AFFS_2')
 
 	voxel_size = Coordinate((1, 1, 1))
 	input_shape = Coordinate(config['input_shape']) * voxel_size
@@ -44,7 +45,8 @@ def predict(iteration):
 	request.add(joined_affinities_key, input_shape)
 	request.add(raw_affinities_key, input_shape)
 	request.add(raw_key, input_shape)
-	request.add(pred_affinities_key, output_shape)
+	request.add(pred_affinities_1_key, output_shape)
+	request.add(pred_affinities_2_key, output_shape)
 
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
@@ -70,14 +72,24 @@ def predict(iteration):
 		# Normalize(raw_key) +
 		IntensityScaleShift(raw_key, 2,-1) +
 		Predict(
-			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_200'),
+			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
 			inputs={
 				config['raw']: raw_key
 			},
 			outputs={
-				config['pred_affs']: pred_affinities_key
+				config['pred_affs_1']: pred_affinities_1_key
 			},
-			# graph=os.path.join(setup_dir, 'predict_net.meta')
+			graph=os.path.join(setup_dir, 'predict_net.meta')
+		) +
+		Predict(
+			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
+			inputs={
+				config['raw']: raw_key
+			},
+			outputs={
+				config['pred_affs_2']: pred_affinities_2_key
+			},
+			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
 		IntensityScaleShift(
 			array=raw_key,
@@ -88,12 +100,15 @@ def predict(iteration):
 				labels_key: 'volumes/labels/labels',
 				raw_affinities_key: 'volumes/raw_affs',
 				raw_key: 'volumes/raw',
-				pred_affinities_key: 'volumes/pred_affs'
+				pred_affinities_1_key: 'volumes/pred_affs_1',
+				pred_affinities_2_key: 'volumes/pred_affs_2'
 			},
-			output_filename='predict/batch_{iteration}.hdf',
+			output_filename='prob_unet/prediction.hdf',
 			every=1,
 			dataset_dtypes={
 				raw_key: np.float32,
+				pred_affinities_1_key: np.float32,
+				pred_affinities_2_key: np.float32,
 				labels_key: np.uint64
 			}) + 
 		PrintProfilingStats(every=20)

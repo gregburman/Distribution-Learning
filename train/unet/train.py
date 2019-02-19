@@ -1,6 +1,6 @@
 from __future__ import print_function
 import sys
-sys.path.append('../')
+sys.path.append('../../')
 
 from gunpowder import *
 from gunpowder.tensorflow import *
@@ -28,13 +28,12 @@ def train(iterations):
 	if trained_until >= iterations:
 		return
 
-	with open('train/train_net.json', 'r') as f:
+	with open('train/unet/train_net.json', 'r') as f:
 		config = json.load(f)
 
 	# define array-keys
 	
 	labels_key = ArrayKey('GT_LABELS')
-	input_affinities_key = ArrayKey('GT_AFFINITIES_IN')
 	output_affinities_key = ArrayKey('GT_AFFINITIES_OUT')
 	joined_affinities_key = ArrayKey('GT_JOINED_AFFINITIES')
 	raw_affinities_key = ArrayKey('RAW_AFFINITIES_KEY')
@@ -53,7 +52,6 @@ def train(iterations):
 	# define requests
 	request = BatchRequest()
 	# request.add(labels_key, input_shape) # TODO: why does adding this request cause a duplication of generations?
-	request.add(input_affinities_key, input_shape)
 	request.add(joined_affinities_key, input_shape)
 	request.add(raw_affinities_key, input_shape)
 	request.add(raw_key, input_shape)
@@ -90,10 +88,6 @@ def train(iterations):
         AddAffinities(
             affinity_neighborhood=neighborhood,
             labels=labels_key,
-            affinities=input_affinities_key) +
-        AddAffinities(
-            affinity_neighborhood=neighborhood,
-            labels=labels_key,
             affinities=output_affinities_key) +
 		AddJoinedAffinities(
 			input_affinities=raw_affinities_key,
@@ -120,12 +114,11 @@ def train(iterations):
 			# key=output_affinities_key,
 			# roi=crop_roi) +
 		Train(
-			graph='train/train_net',
+			graph='train/unet/train_net',
 			optimizer=config['optimizer'],
 			loss=config['loss'],
 			inputs={
 				config['raw']: raw_key,
-				config['gt_affs_in']: input_affinities_key,
 				config['gt_affs_out']: output_affinities_key,
 				config['pred_affs_loss_weights']: input_affinities_scale_key
 			},
@@ -136,7 +129,7 @@ def train(iterations):
 				config['pred_affs']: pred_affinities_gradient_key
 			},
 			summary=config['summary'],
-			log_dir='log',
+			log_dir='log/unet',
 			save_every=100) +
 		IntensityScaleShift(
 			array=raw_key,
@@ -145,13 +138,12 @@ def train(iterations):
 		Snapshot(
 			dataset_names={
 				labels_key: 'volumes/labels/labels',
-				input_affinities_key: 'volumes/input_affs',
 				raw_key: 'volumes/raw',
 				pred_affinities_key: 'volumes/pred_affs',
 				output_affinities_key: 'volumes/output_affs'
 			},
-			output_filename='train/batch_{iteration}.hdf',
-			every=50,
+			output_filename='unet/train/batch_{iteration}.hdf',
+			every=100,
 			dataset_dtypes={
 				raw_key: np.float32,
 				labels_key: np.uint64
@@ -164,7 +156,6 @@ def train(iterations):
 		for i in range(iterations - trained_until):
 			req = p.request_batch(request)
 			# print ("labels: ", req[labels_key].data.shape)
-			# print ("affinities_in: ", req[input_affinities_key].data.shape)
 			# print ("affinities_out: ", req[output_affinities_key].data.shape)
 			# print ("affinities_joined: ", req[joined_affinities_key].data.shape)
 			# print ("raw: ", req[raw_key].data.shape)

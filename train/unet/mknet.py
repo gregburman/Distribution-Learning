@@ -1,11 +1,10 @@
 from __future__ import print_function
 import sys
-sys.path.append('../')
+sys.path.append('../../')
 
 import tensorflow as tf
 import json
 import mala
-import prob_unet
 
 from models.unet import UNet
 

@@ -19,10 +19,8 @@ neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
 setup_dir = os.path.dirname(os.path.realpath(__file__))
 
-with open(os.path.join(setup_dir, 'predict_net.json'), 'r') as f:
+with open(os.path.join(setup_dir, 'train_net.json'), 'r') as f:
 	config = json.load(f)
-
-print ("net config: ", config)
 
 def predict(iteration):
 
@@ -70,7 +68,7 @@ def predict(iteration):
 		# Normalize(raw_key) +
 		IntensityScaleShift(raw_key, 2,-1) +
 		Predict(
-			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_200'),
+			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
 			inputs={
 				config['raw']: raw_key
 			},
@@ -90,10 +88,11 @@ def predict(iteration):
 				raw_key: 'volumes/raw',
 				pred_affinities_key: 'volumes/pred_affs'
 			},
-			output_filename='predict/batch_{iteration}.hdf',
+			output_filename='unet/prediction.hdf',
 			every=1,
 			dataset_dtypes={
 				raw_key: np.float32,
+				pred_affinities_key: np.float32,
 				labels_key: np.uint64
 			}) + 
 		PrintProfilingStats(every=20)
