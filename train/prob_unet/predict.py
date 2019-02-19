@@ -44,12 +44,12 @@ def predict(iteration):
 	request.add(joined_affinities_key, input_shape)
 	request.add(raw_affinities_key, input_shape)
 	request.add(raw_key, input_shape)
-	# request.add(pred_affinities_key, output_shape)
+	request.add(pred_affinities_key, output_shape)
 
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
-			n_objects=50,
+			n_objects=7,
 			points_per_skeleton=8,
 			smoothness=3,
 			interpolation="random") +
@@ -69,22 +69,26 @@ def predict(iteration):
 		# Crop(raw_key, read_roi) +
 		# Normalize(raw_key) +
 		IntensityScaleShift(raw_key, 2,-1) +
-		# Predict(
-		# 	checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_100'),
-		# 	inputs={
-		# 		config['raw']: raw_key
-		# 	},
-		# 	outputs={
-		# 		config['pred_affs']: pred_affinities_key
-		# 	},
-		# 	graph=os.path.join(setup_dir, 'predict_net.meta')
-		# ) +
+		Predict(
+			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_200'),
+			inputs={
+				config['raw']: raw_key
+			},
+			outputs={
+				config['pred_affs']: pred_affinities_key
+			},
+			# graph=os.path.join(setup_dir, 'predict_net.meta')
+		) +
+		IntensityScaleShift(
+			array=raw_key,
+			scale=0.5,
+			shift=0.5) +
 		Snapshot(
 			dataset_names={
 				labels_key: 'volumes/labels/labels',
 				raw_affinities_key: 'volumes/raw_affs',
 				raw_key: 'volumes/raw',
-				# pred_affinities_key: 'volumes/pred_affs'
+				pred_affinities_key: 'volumes/pred_affs'
 			},
 			output_filename='predict/batch_{iteration}.hdf',
 			every=1,

@@ -137,7 +137,7 @@ def train(iterations):
 			},
 			summary=config['summary'],
 			log_dir='log',
-			save_every=20) +
+			save_every=100) +
 		IntensityScaleShift(
 			array=raw_key,
 			scale=0.5,
@@ -151,7 +151,7 @@ def train(iterations):
 				output_affinities_key: 'volumes/output_affs'
 			},
 			output_filename='train/batch_{iteration}.hdf',
-			every=1,
+			every=50,
 			dataset_dtypes={
 				raw_key: np.float32,
 				labels_key: np.uint64

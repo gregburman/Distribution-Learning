@@ -13,7 +13,7 @@ from models.f_comb import FComb
 
 def create_network(input_shape, name):
 
-	beta = 1e-6
+	beta = 0
 	tf.reset_default_graph()
 
 	raw = tf.placeholder(tf.float32, shape=input_shape, name="raw") # for gp

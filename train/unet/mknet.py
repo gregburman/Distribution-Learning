@@ -51,9 +51,10 @@ def create_network(input_shape, name):
 	# 	gt_affs_out,
 	# 	pred_affs,
 	# 	pred_affs_loss_weights)
-	loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_affs, pred_affs_loss_weights)
+	loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
+	# loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_affs, pred_affs_loss_weights)
 
-	summary = tf.summary.scalar('setup01_eucl_loss', loss)
+	summary = tf.summary.scalar('mse_loss', loss)
 
 	# opt = tf.train.AdamOptimizer(
 	# 	learning_rate=0.5e-4,
@@ -85,7 +86,7 @@ def create_network(input_shape, name):
 		json.dump(config, f)
 
 if __name__ == "__main__":
-	create_network((140, 140, 140), 'train_net')
+	create_network((132, 132, 132), 'train_net')
 
 
 	# unet, _, _ = mala.networks.unet(
