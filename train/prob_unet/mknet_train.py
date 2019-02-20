@@ -13,7 +13,7 @@ from models.f_comb import FComb
 
 def create_network(input_shape, name):
 
-	beta = 1e6
+	beta = 0
 	tf.reset_default_graph()
 
 	raw = tf.placeholder(tf.float32, shape=input_shape, name="raw") # for gp
@@ -89,8 +89,10 @@ def create_network(input_shape, name):
 		voxel_size = (1, 1, 1))
 	f_comb.build()
 
+	pred_logits = unet.get_fmaps()
+
 	affs_batched = tf.layers.conv3d(
-		inputs=f_comb.get_fmaps(),
+		inputs=pred_logits,
 		filters=3, 
 		kernel_size=1,
 		padding='valid',
@@ -99,32 +101,34 @@ def create_network(input_shape, name):
 		name="affs")
 	print ("")
 
-	
 	# tf.add_to_collection('unet', prior)
 	# tf.add_to_collection('unet', f_comb)
 
 	output_shape_batched = affs_batched.get_shape().as_list()
-	print ("output_shape_batched: "), output_shape_batched
 	output_shape = output_shape_batched[1:] # strip the batch dimension
+
+	print ("pred_logits: ", pred_logits.shape)
+	pred_logits = tf.squeeze(affs_batched, axis=[0], name="pred_logits")
+	# pred_logits_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_logits_loss_weights")
 
 	pred_affs = tf.reshape(affs_batched, output_shape, name="pred_affs")
 	gt_affs_out = tf.placeholder(tf.float32, shape=output_shape, name="gt_affs_out")
-	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
+	# pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
 
 	sample_p = prior.get_fmaps()
 	sample_q = posterior.get_fmaps()
 
 	kl_loss = tf.distributions.kl_divergence(sample_p, sample_q)
 	kl_loss = tf.reshape(kl_loss, [])
-	# ce_loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_affs, pred_affs_loss_weights)
-	mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
-	loss = mse_loss + beta * kl_loss
+	sce_loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_logits)
+	# mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
+	loss = sce_loss + beta * kl_loss
 	print ("kl_loss: ", kl_loss)
 	print ("kl_loss: ", kl_loss.shape)
 	# summary = tf.summary.scalar('loss', loss)
 
 	tf.summary.scalar('kl_loss', kl_loss)
-	tf.summary.scalar('mse_loss', mse_loss)
+	tf.summary.scalar('sce_loss', sce_loss)
 	summary = tf.summary.merge_all()
 
 
@@ -150,7 +154,7 @@ def create_network(input_shape, name):
 		'pred_affs': pred_affs.name,
 		'gt_affs_in': gt_affs_in.name,
 		'gt_affs_out': gt_affs_out.name,
-		'pred_affs_loss_weights': pred_affs_loss_weights.name,
+		# 'pred_affs_loss_weights': pred_affs_loss_weights.name,
 		'loss': loss.name,
 		'optimizer': optimizer.name,
 		'input_shape': input_shape,

@@ -127,7 +127,7 @@ def train(iterations):
 				config['raw']: raw_key,
 				config['gt_affs_in']: input_affinities_key,
 				config['gt_affs_out']: output_affinities_key,
-				config['pred_affs_loss_weights']: input_affinities_scale_key
+				# config['pred_affs_loss_weights']: input_affinities_scale_key
 			},
 			outputs={
 				config['pred_affs']: pred_affinities_key
@@ -137,7 +137,7 @@ def train(iterations):
 			},
 			summary=config['summary'],
 			log_dir='log',
-			save_every=100) +
+			save_every=20) +
 		IntensityScaleShift(
 			array=raw_key,
 			scale=0.5,

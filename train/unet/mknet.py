@@ -31,15 +31,24 @@ def create_network(input_shape, name):
 		voxel_size = (1, 1, 1))
 	unet.build()
 
-	affs_batched, _ = mala.networks.conv_pass(
-		fmaps_in=unet.get_fmaps(),
-		kernel_sizes=[1],
-		num_fmaps=3,
+	pred_logits = unet.get_fmaps()
+
+	affs_batched = tf.layers.conv3d(
+		inputs=pred_logits,
+		filters=3, 
+		kernel_size=1,
+		padding='valid',
+		data_format="channels_first",
 		activation='sigmoid',
-		name='affs')
+		name="affs")
+	print ("")
 
 	output_shape_batched = affs_batched.get_shape().as_list()
 	output_shape = output_shape_batched[1:] # strip the batch dimension
+
+	print ("pred_logits: ", pred_logits.shape)
+	pred_logits = tf.squeeze(affs_batched, axis=[0], name="pred_logits")
+	# pred_logits_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_logits_loss_weights")
 
 	pred_affs = tf.reshape(affs_batched, output_shape)
 
@@ -50,10 +59,14 @@ def create_network(input_shape, name):
 	# 	gt_affs_out,
 	# 	pred_affs,
 	# 	pred_affs_loss_weights)
-	loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
-	# loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_affs, pred_affs_loss_weights)
+	# loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
+	loss = tf.losses.sigmoid_cross_entropy(
+		multi_class_labels = gt_affs_out,
+		logits = pred_logits,
+		weights = pred_affs_loss_weights)
 
-	summary = tf.summary.scalar('mse_loss', loss)
+	# summary = tf.summary.scalar('mse_loss', loss)
+	summary = tf.summary.scalar('sce', loss)
 
 	# opt = tf.train.AdamOptimizer(
 	# 	learning_rate=0.5e-4,
