@@ -8,7 +8,6 @@ class FComb():
 	def __init__ (self,
 		fmaps_in,
 		sample_in,
-		num_classes,
 		num_1x1_convs,
 		num_channels,
 		padding_type,
@@ -17,7 +16,6 @@ class FComb():
 
 		self.fmaps_in = fmaps_in
 		self.sample_in = sample_in
-		self.num_classes = num_classes
 		self.num_1x1_convs = num_1x1_convs
 		self.num_channels = num_channels
 		self.padding_type = padding_type
@@ -77,13 +75,12 @@ if __name__ == "__main__":
 
 	f_comb = FComb(
 		fmaps_in = raw,
-		num_classes = 3,
+		sample_in = sample,
 		num_1x1_convs = 3,
 		num_channels = 12,
 		padding_type = 'valid',
 		activation_type = 'relu',
 		voxel_size = (1, 1, 1))
-	f_comb.set_sample(sample)
 	f_comb.build()
 	fmaps = f_comb.get_fmaps()
 	print ("fmaps: ", fmaps.shape)

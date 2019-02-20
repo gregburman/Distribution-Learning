@@ -22,7 +22,7 @@ def create_network(input_shape, name):
 	gt_affs_in_batched = tf.reshape(gt_affs_in, (1, 3) + input_shape, name="gt_affs_in_batched")
 
 	print ("raw_batched: ", raw_batched.shape)
-	print ("gt_affs_in_batched: "), gt_affs_in_batched.shape
+	print ("gt_affs_in_batched: ", gt_affs_in_batched.shape)
 	print ("")
 
 	unet = UNet(
@@ -81,7 +81,6 @@ def create_network(input_shape, name):
 	f_comb = FComb(
 		fmaps_in = unet.get_fmaps(),
 		sample_in = posterior.sample(),
-		num_classes = 3,
 		num_1x1_convs = 3,
 		num_channels = 12,
 		padding_type = 'valid',
@@ -89,48 +88,46 @@ def create_network(input_shape, name):
 		voxel_size = (1, 1, 1))
 	f_comb.build()
 
-	pred_logits = unet.get_fmaps()
-
-	affs_batched = tf.layers.conv3d(
-		inputs=pred_logits,
+	pred_logits = tf.layers.conv3d(
+		inputs=f_comb.get_fmaps(),
 		filters=3, 
 		kernel_size=1,
 		padding='valid',
 		data_format="channels_first",
-		activation='sigmoid',
+		activation=None,
 		name="affs")
 	print ("")
 
-	# tf.add_to_collection('unet', prior)
-	# tf.add_to_collection('unet', f_comb)
+	pred_affs = tf.sigmoid(pred_logits)
 
-	output_shape_batched = affs_batched.get_shape().as_list()
+	output_shape_batched = pred_logits.get_shape().as_list()
 	output_shape = output_shape_batched[1:] # strip the batch dimension
 
-	print ("pred_logits: ", pred_logits.shape)
-	pred_logits = tf.squeeze(affs_batched, axis=[0], name="pred_logits")
-	# pred_logits_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_logits_loss_weights")
+	pred_logits = tf.squeeze(pred_logits, axis=[0], name="pred_logits")
+	pred_affs = tf.squeeze(pred_affs, axis=[0], name="pred_affs")
 
-	pred_affs = tf.reshape(affs_batched, output_shape, name="pred_affs")
 	gt_affs_out = tf.placeholder(tf.float32, shape=output_shape, name="gt_affs_out")
-	# pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
+	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
+
+	print ("pred_logits: ", pred_logits.shape)
+	print ("pred_affs: ", pred_affs.shape)
 
 	sample_p = prior.get_fmaps()
 	sample_q = posterior.get_fmaps()
 
 	kl_loss = tf.distributions.kl_divergence(sample_p, sample_q)
 	kl_loss = tf.reshape(kl_loss, [])
-	sce_loss = tf.losses.sigmoid_cross_entropy(gt_affs_out, pred_logits)
+	sce_loss = tf.losses.sigmoid_cross_entropy(
+		multi_class_labels = gt_affs_out,
+		logits = pred_logits,
+		weights = pred_affs_loss_weights)
 	# mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
 	loss = sce_loss + beta * kl_loss
-	print ("kl_loss: ", kl_loss)
-	print ("kl_loss: ", kl_loss.shape)
 	# summary = tf.summary.scalar('loss', loss)
 
 	tf.summary.scalar('kl_loss', kl_loss)
 	tf.summary.scalar('sce_loss', sce_loss)
 	summary = tf.summary.merge_all()
-
 
 	# opt = tf.train.AdamOptimizer(
 	# 	learning_rate=1e-6,
@@ -141,12 +138,9 @@ def create_network(input_shape, name):
 	optimizer = opt.minimize(loss)
 
 	output_shape = output_shape[1:]
-	print("input shape : %s"%(input_shape,))
-	print("output shape: %s"%(output_shape,))
+	print("input shape : %s" % (input_shape,))
+	print("output shape: %s" % (output_shape,))
 
-	# tf.add_to_collection("unet", unet.get_fmaps())
-	# tf.add_to_collection("prior", prior.get_fmaps())
-	# tf.add_to_collection("f_comb", f_comb.get_fmaps())
 	tf.train.export_meta_graph(filename=name + '.meta')
 
 	config = {
@@ -154,7 +148,7 @@ def create_network(input_shape, name):
 		'pred_affs': pred_affs.name,
 		'gt_affs_in': gt_affs_in.name,
 		'gt_affs_out': gt_affs_out.name,
-		# 'pred_affs_loss_weights': pred_affs_loss_weights.name,
+		'pred_affs_loss_weights': pred_affs_loss_weights.name,
 		'loss': loss.name,
 		'optimizer': optimizer.name,
 		'input_shape': input_shape,

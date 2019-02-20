@@ -119,7 +119,7 @@ def train(iterations):
 			loss=config['loss'],
 			inputs={
 				config['raw']: raw_key,
-				config['gt_affs_out']: output_affinities_key,
+				config['gt_affs']: output_affinities_key,
 				config['pred_affs_loss_weights']: input_affinities_scale_key
 			},
 			outputs={

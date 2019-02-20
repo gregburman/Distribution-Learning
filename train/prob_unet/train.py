@@ -136,8 +136,8 @@ def train(iterations):
 				config['pred_affs']: pred_affinities_gradient_key
 			},
 			summary=config['summary'],
-			log_dir='log',
-			save_every=20) +
+			log_dir='log/prob_unet',
+			save_every=10) +
 		IntensityScaleShift(
 			array=raw_key,
 			scale=0.5,
@@ -155,8 +155,8 @@ def train(iterations):
 			dataset_dtypes={
 				raw_key: np.float32,
 				labels_key: np.uint64
-			}) + 
-		PrintProfilingStats(every=20)
+			})
+		# PrintProfilingStats(every=20)
 	)
 
 	print("Starting training...")
