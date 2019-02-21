@@ -6,11 +6,12 @@ from skimage.filters import gaussian
 
 class AddRealism(BatchFilter):
 
-	def __init__(self, joined_affinities, raw, sp, sigma):
+	def __init__(self, joined_affinities, raw, sp, sigma, contrast):
 		self.joined_affinities = joined_affinities
 		self.raw = raw
 		self.sp = sp
 		self.sigma = sigma
+		self.contrast = contrast
 
 
 	def setup(self):
@@ -27,7 +28,7 @@ class AddRealism(BatchFilter):
 
 		raw = random_noise(joined_affinities, 's&p', amount=self.sp)
 		raw = gaussian(raw,self.sigma)
-		raw = raw*0.7
+		raw = raw * self.contrast
 
 		spec = self.spec[self.raw].copy()
 		spec.roi = request[self.raw].roi

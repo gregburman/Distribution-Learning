@@ -13,8 +13,12 @@ from models.f_comb import FComb
 
 def create_network(input_shape, name):
 
-	beta = 0
+	print ("MKNET: PROB-UNET TRAIN")
+	print("")
+	beta = 1
 	tf.reset_default_graph()
+
+	print ("beta: ", 1)
 
 	raw = tf.placeholder(tf.float32, shape=input_shape, name="raw") # for gp
 	raw_batched = tf.reshape(raw, (1, 1) + input_shape, name="raw_batched") # for tf
@@ -109,6 +113,7 @@ def create_network(input_shape, name):
 	gt_affs_out = tf.placeholder(tf.float32, shape=output_shape, name="gt_affs_out")
 	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
 
+	print ("gt_affs_out: ", gt_affs_out.shape)
 	print ("pred_logits: ", pred_logits.shape)
 	print ("pred_affs: ", pred_affs.shape)
 

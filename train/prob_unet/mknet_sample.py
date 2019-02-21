@@ -13,6 +13,9 @@ from models.f_comb import FComb
 
 def create_network(input_shape, name):
 
+	print ("MKNET: PROB-UNET SAMPLE")
+	print("")
+
 	tf.reset_default_graph()
 
 	raw = tf.placeholder(tf.float32, shape=input_shape, name="raw") # for gp
@@ -59,7 +62,6 @@ def create_network(input_shape, name):
 	f_comb = FComb(
 		fmaps_in = unet.get_fmaps(),
 		sample_in = prior.sample(),
-		num_classes = 3,
 		num_1x1_convs = 3,
 		num_channels = 12,
 		padding_type = 'valid',
@@ -68,22 +70,26 @@ def create_network(input_shape, name):
 	f_comb.build()
 	print ("")
 
-	affs_batched = tf.layers.conv3d(
+	pred_logits = tf.layers.conv3d(
 		inputs=f_comb.get_fmaps(),
 		filters=3, 
 		kernel_size=1,
 		padding='valid',
 		data_format="channels_first",
-		activation='sigmoid',
+		activation=None,
 		name="affs")
 	print ("")
 
-	output_shape_batched = affs_batched.get_shape().as_list()
-	print ("output_shape_batched: ", output_shape_batched)
+	pred_affs = tf.sigmoid(pred_logits)
+
+	output_shape_batched = pred_logits.get_shape().as_list()
 	output_shape = output_shape_batched[1:] # strip the batch dimension
 
-	pred_affs_1 = tf.reshape(affs_batched, output_shape, name="pred_affs_1")
-	pred_affs_2 = tf.reshape(affs_batched, output_shape, name="pred_affs_2")
+	pred_logits = tf.squeeze(pred_logits, axis=[0], name="pred_logits")
+	pred_affs = tf.squeeze(pred_affs, axis=[0], name="pred_affs")
+
+	print ("pred_logits: ", pred_logits.shape)
+	print ("pred_affs: ", pred_affs.shape)
 
 	output_shape = output_shape[1:]
 	print("input shape : %s"%(input_shape,))
@@ -93,8 +99,7 @@ def create_network(input_shape, name):
 
 	config = {
 		'raw': raw.name,
-		'pred_affs_1': pred_affs_1.name,
-		'pred_affs_2': pred_affs_2.name,
+		'pred_affs': pred_affs.name,
 		'input_shape': input_shape,
 		'output_shape': output_shape,
 	}

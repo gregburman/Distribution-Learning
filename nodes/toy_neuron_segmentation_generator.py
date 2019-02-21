@@ -22,7 +22,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 	smoothness: Controls the smoothness of the initial noise map used to generate object boundaries.
 	"""
 
-	def __init__(self, array_key, n_objects, points_per_skeleton, smoothness, interpolation):
+	def __init__(self, array_key, n_objects, points_per_skeleton, smoothness, noise_strength, interpolation):
 		# assert len(shape) == 3
 
 		self.array_key = array_key
@@ -31,6 +31,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 		self.n_objects = n_objects
 		self.points_per_skeleton = points_per_skeleton
 		self.smoothness = smoothness
+		self.noise_strength = noise_strength
 		self.interpolation = interpolation
 
 	def setup(self):
@@ -38,7 +39,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 		self.provides(
 			self.array_key,
 			gp.ArraySpec(
-				roi=gp.Roi(offset=gp.Coordinate((-1000, -1000, -1000)), shape=gp.Coordinate((2000, 2000, 2000))),
+				roi=gp.Roi(offset=gp.Coordinate((-10000, -10000, -10000)), shape=gp.Coordinate((20000, 20000, 20000))),
 				voxel_size=(1, 1, 1)))
 
 	def provide(self, request):
@@ -59,12 +60,14 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 					lshape[i] += 1
 			shape = gp.Coordinate(lshape)
 
+			print "create_segmentation..."
 			data = create_segmentation(
 				shape=shape,
 				n_objects=self.n_objects,
 				points_per_skeleton=self.points_per_skeleton,
 				interpolation=self.interpolation ,
 				smoothness=self.smoothness,
+				noise_strength = self.noise_strength,
 				seed=np.random.random_integers(1000000000))
 			segmentation = data["segmentation"]
 

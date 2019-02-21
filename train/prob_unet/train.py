@@ -114,8 +114,8 @@ def train(iterations):
 			axis=0) +
 		IntensityScaleShift(raw_key, 2,-1) +
 		PreCache(
-			cache_size=28,
-			num_workers=7) +
+			cache_size=32,
+			num_workers=8) +
 		# Crop(
 			# key=output_affinities_key,
 			# roi=crop_roi) +
@@ -127,7 +127,7 @@ def train(iterations):
 				config['raw']: raw_key,
 				config['gt_affs_in']: input_affinities_key,
 				config['gt_affs_out']: output_affinities_key,
-				# config['pred_affs_loss_weights']: input_affinities_scale_key
+				config['pred_affs_loss_weights']: input_affinities_scale_key
 			},
 			outputs={
 				config['pred_affs']: pred_affinities_key
@@ -137,7 +137,7 @@ def train(iterations):
 			},
 			summary=config['summary'],
 			log_dir='log/prob_unet',
-			save_every=10) +
+			save_every=100) +
 		IntensityScaleShift(
 			array=raw_key,
 			scale=0.5,
@@ -151,7 +151,7 @@ def train(iterations):
 				output_affinities_key: 'volumes/output_affs'
 			},
 			output_filename='prob_unet/train/batch_{iteration}.hdf',
-			every=50,
+			every=200,
 			dataset_dtypes={
 				raw_key: np.float32,
 				labels_key: np.uint64

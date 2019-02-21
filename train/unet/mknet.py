@@ -10,6 +10,8 @@ from models.unet import UNet
 
 def create_network(input_shape, name):
 
+	print ("MKNET: UNET TRAIN")
+	print("")
 	tf.reset_default_graph()
 
 	raw = tf.placeholder(tf.float32, shape=input_shape)
@@ -49,11 +51,12 @@ def create_network(input_shape, name):
 	pred_logits = tf.squeeze(pred_logits, axis=[0], name="pred_logits")
 	pred_affs = tf.squeeze(pred_affs, axis=[0], name="pred_affs")
 
-	gt_affs = tf.placeholder(tf.float32, shape=output_shape)
-	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape)
+	gt_affs = tf.placeholder(tf.float32, shape=output_shape, name="gt_affs")
+	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
 	
-	print ("pred_affs: ", pred_affs.shape)
 	print ("gt_affs: ", gt_affs.shape)
+	print ("pred_logits: ", pred_logits.shape)
+	print ("pred_affs: ", pred_affs.shape)
 
 	# loss = tf.losses.mean_squared_error(
 	# 	gt_affs,

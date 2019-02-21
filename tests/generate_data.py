@@ -10,8 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import logging
 
+import time
+
 # logging.getLogger('gp.AddAffinities').setLevel(logging.DEBUG)
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 def generate_data(num_batches):
 
@@ -23,7 +25,7 @@ def generate_data(num_batches):
 	raw_key = ArrayKey('RAW')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate((132,132,132)) * voxel_size
+	input_size = Coordinate((100,1000,1000)) * voxel_size
 	output_size = Coordinate((44,44,44)) * voxel_size
 
 	print ("input_size: ", input_size)
@@ -31,11 +33,11 @@ def generate_data(num_batches):
 
 	request = BatchRequest()
 	request.add(labels_key, input_size)
-	request.add(input_affinities_key, input_size)
+	# request.add(input_affinities_key, input_size)
 	request.add(joined_affinities_key, input_size)
 	request.add(raw_affinities_key, input_size)
 	request.add(raw_key, input_size)
-	request.add(output_affinities_key, output_size)
+	# request.add(output_affinities_key, output_size)
 
 	# offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
 	# crop_roi = Roi(offset, output_size)
@@ -46,40 +48,42 @@ def generate_data(num_batches):
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
-			n_objects=50,
-			points_per_skeleton=8,
+			n_objects=200,
+			points_per_skeleton=12,
 			smoothness=3,
+			noise_strength = 100,
 			interpolation="random") +
 		AddAffinities(
 			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
 			labels=labels_key,
 			affinities=raw_affinities_key) +
-		GrowBoundary(labels_key, steps=1, only_xy=True) +
-		AddAffinities(
-			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-			labels=labels_key,
-			affinities=input_affinities_key) +
-		AddAffinities(
-			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-			labels=labels_key,
-			affinities=output_affinities_key) +
-		# Crop(
-		# 	key=input_affinities_key,
-		# 	roi=crop_roi) 
+		# GrowBoundary(labels_key, steps=1, only_xy=True) +
+		# AddAffinities(
+		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
+		# 	labels=labels_key,
+		# 	affinities=input_affinities_key) +
+		# AddAffinities(
+		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
+		# 	labels=labels_key,
+		# 	affinities=output_affinities_key) +
+		# # Crop(
+		# # 	key=input_affinities_key,
+		# # 	roi=crop_roi) 
 		AddJoinedAffinities(
 			input_affinities=raw_affinities_key,
 			joined_affinities=joined_affinities_key) +
 		 AddRealism(
 		 	joined_affinities=joined_affinities_key,
 		 	raw=raw_key,
-		 	sp=0.4,
-		 	sigma=1) +
+		 	sp=0.25,
+		 	sigma=1,
+		 	contrast=0.7) +
 		 Snapshot(
 		 	dataset_names={
 		 	# 	raw_key: 'volumes/raw',
 				labels_key: 'volumes/labels',
 				# input_affinities_key: 'volumes/affinities_in',
-				# joined_affinities_key: 'volumes/affinities_joined',
+				joined_affinities_key: 'volumes/affinities_joined',
 				# output_affinities_key: 'volumes/affinities_out',
 				raw_affinities_key: 'volumes/affinities_raw',
 				raw_key: 'volumes/raw'
@@ -115,6 +119,8 @@ def generate_data(num_batches):
 			# plt.show()
 
 if __name__ == "__main__":
+	t0 = time.time()
 	print("Generating data...")
 	generate_data(num_batches=int(sys.argv[1]))
 	print ("Data generation test finished.")
+	print ("total time: ", (time.time() - t0))

@@ -77,7 +77,7 @@ def predict(iteration):
 				config['raw']: raw_key
 			},
 			outputs={
-				config['pred_affs_1']: pred_affinities_1_key
+				config['pred_affs']: pred_affinities_1_key
 			},
 			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
@@ -87,7 +87,7 @@ def predict(iteration):
 				config['raw']: raw_key
 			},
 			outputs={
-				config['pred_affs_2']: pred_affinities_2_key
+				config['pred_affs']: pred_affinities_2_key
 			},
 			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
