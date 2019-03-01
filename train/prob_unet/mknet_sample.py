@@ -88,6 +88,11 @@ def create_network(input_shape, name):
 	pred_logits = tf.squeeze(pred_logits, axis=[0], name="pred_logits")
 	pred_affs = tf.squeeze(pred_affs, axis=[0], name="pred_affs")
 
+	# sample_z = tf.squeeze(prior.sample(), axis=[0], name="sample_z")
+	# z = tf.squeeze(prior.sample(), axis=[0], name="sample_z")
+	# print("sample_z", sample_z.shape)
+	# print("z", z.shape)
+
 	print ("pred_logits: ", pred_logits.shape)
 	print ("pred_affs: ", pred_affs.shape)
 
@@ -101,7 +106,8 @@ def create_network(input_shape, name):
 		'raw': raw.name,
 		'pred_affs': pred_affs.name,
 		'input_shape': input_shape,
-		'output_shape': output_shape,
+		'output_shape': output_shape
+		# 'sample_z': sample_z
 	}
 	with open(name + '.json', 'w') as f:
 		json.dump(config, f)

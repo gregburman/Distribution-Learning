@@ -14,11 +14,11 @@ RUN \
 #RUN apt-get source python-graph-tool
 #RUN apt-key adv --keyserver pgp.skewed.de --recv-key 612DEFB798507F25
 
-# install skelerator
+# install skelerator - use gregburman repo for unmerged changes, and checkout branch if necessary
 RUN git clone https://github.com/nilsec/skelerator.git
+# RUN git clone https://github.com/gregburman/skelerator.git
 WORKDIR skelerator
-RUN git fetch origin pull/1/head:non-isotropic-generation
-RUN git checkout non-isotropic-generation
+# RUN git checkout noise_strength
 RUN python setup.py install
 
 WORKDIR /distribution-learning

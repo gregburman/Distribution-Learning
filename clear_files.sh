@@ -1,8 +1,8 @@
 # unet
-# rm log/unet/*
-# rm snapshots/unet/train/*
-# rm train/unet/checkpoint
-# rm train/unet/train_net_checkpoint*
+rm log/unet/*
+rm snapshots/unet/train/*
+rm train/unet/checkpoint
+rm train/unet/train_net_checkpoint*
 
 # prob_unet
 rm log/prob_unet/*

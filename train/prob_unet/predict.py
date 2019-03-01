@@ -32,6 +32,9 @@ def predict(iteration):
 	raw_key = ArrayKey('RAW')
 	pred_affinities_1_key = ArrayKey('PREDICTED_AFFS_1')
 	pred_affinities_2_key = ArrayKey('PREDICTED_AFFS_2')
+	pred_affinities_3_key = ArrayKey('PREDICTED_AFFS_3')
+	pred_affinities_4_key = ArrayKey('PREDICTED_AFFS_4')
+	pred_affinities_5_key = ArrayKey('PREDICTED_AFFS_5')
 
 	voxel_size = Coordinate((1, 1, 1))
 	input_shape = Coordinate(config['input_shape']) * voxel_size
@@ -47,13 +50,17 @@ def predict(iteration):
 	request.add(raw_key, input_shape)
 	request.add(pred_affinities_1_key, output_shape)
 	request.add(pred_affinities_2_key, output_shape)
+	request.add(pred_affinities_3_key, output_shape)
+	# request.add(pred_affinities_4_key, output_shape)
+	# request.add(pred_affinities_5_key, output_shape)
 
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
-			n_objects=7,
+			n_objects=50,
 			points_per_skeleton=8,
 			smoothness=3,
+			noise_strength=1,
 			interpolation="random") +
 		AddAffinities(
 			affinity_neighborhood=neighborhood,
@@ -66,7 +73,8 @@ def predict(iteration):
 			joined_affinities = joined_affinities_key,
 			raw = raw_key,
 			sp=0.65,
-			sigma=1) +
+			sigma=1,
+			contrast=0.7) +
 		# Pad(raw_key, size=None) +
 		# Crop(raw_key, read_roi) +
 		# Normalize(raw_key) +
@@ -91,17 +99,50 @@ def predict(iteration):
 			},
 			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
+		Predict(
+			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
+			inputs={
+				config['raw']: raw_key
+			},
+			outputs={
+				config['pred_affs']: pred_affinities_3_key
+			},
+			graph=os.path.join(setup_dir, 'predict_net.meta')
+		) +
+		# Predict(
+		# 	checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
+		# 	inputs={
+		# 		config['raw']: raw_key
+		# 	},
+		# 	outputs={
+		# 		config['pred_affs']: pred_affinities_4_key
+		# 	},
+		# 	graph=os.path.join(setup_dir, 'predict_net.meta')
+		# ) +
+		# Predict(
+		# 	checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
+		# 	inputs={
+		# 		config['raw']: raw_key
+		# 	},
+		# 	outputs={
+		# 		config['pred_affs']: pred_affinities_5_key
+		# 	},
+		# 	graph=os.path.join(setup_dir, 'predict_net.meta')
+		# ) +
 		IntensityScaleShift(
 			array=raw_key,
 			scale=0.5,
 			shift=0.5) +
 		Snapshot(
 			dataset_names={
-				labels_key: 'volumes/labels/labels',
+				labels_key: 'volumes/labels',
 				raw_affinities_key: 'volumes/raw_affs',
 				raw_key: 'volumes/raw',
 				pred_affinities_1_key: 'volumes/pred_affs_1',
-				pred_affinities_2_key: 'volumes/pred_affs_2'
+				pred_affinities_2_key: 'volumes/pred_affs_2',
+				pred_affinities_3_key: 'volumes/pred_affs_3',
+				# pred_affinities_4_key: 'volumes/pred_affs_4',
+				# pred_affinities_5_key: 'volumes/pred_affs_5'
 			},
 			output_filename='prob_unet/prediction.hdf',
 			every=1,

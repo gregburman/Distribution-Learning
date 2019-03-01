@@ -69,6 +69,7 @@ def train(iterations):
 			n_objects=50,
 			points_per_skeleton=8,
 			smoothness=3,
+			noise_strength = 1,
 			interpolation="random") + 
 		# ElasticAugment(
 		# 	control_point_spacing=[4,40,40],
@@ -96,7 +97,8 @@ def train(iterations):
 			joined_affinities = joined_affinities_key,
 			raw = raw_key,
 			sp=0.65,
-			sigma=1) +
+			sigma=1,
+			contrast=0.7) +
 		BalanceLabels(
 			labels=output_affinities_key,
 			scales=input_affinities_scale_key) +
@@ -137,7 +139,7 @@ def train(iterations):
 			shift=0.5) +
 		Snapshot(
 			dataset_names={
-				labels_key: 'volumes/labels/labels',
+				labels_key: 'volumes/labels',
 				raw_key: 'volumes/raw',
 				pred_affinities_key: 'volumes/pred_affs',
 				output_affinities_key: 'volumes/output_affs'

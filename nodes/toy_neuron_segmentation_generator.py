@@ -26,8 +26,6 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 		# assert len(shape) == 3
 
 		self.array_key = array_key
-		# self.shape = shape
-		# self.pos = pos
 		self.n_objects = n_objects
 		self.points_per_skeleton = points_per_skeleton
 		self.smoothness = smoothness
@@ -68,7 +66,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 				interpolation=self.interpolation ,
 				smoothness=self.smoothness,
 				noise_strength = self.noise_strength,
-				seed=np.random.random_integers(1000000000))
+				seed=np.random.random_integers(1000000))
 			segmentation = data["segmentation"]
 
 			# crop (more elegant & general way to do this?)
