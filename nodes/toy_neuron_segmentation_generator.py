@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import gunpowder as gp
 from gunpowder.nodes.batch_provider import BatchProvider
 from skelerator.forest import create_segmentation
@@ -22,7 +23,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 	smoothness: Controls the smoothness of the initial noise map used to generate object boundaries.
 	"""
 
-	def __init__(self, array_key, n_objects, points_per_skeleton, smoothness, noise_strength, interpolation):
+	def __init__(self, array_key, n_objects, points_per_skeleton, smoothness, noise_strength, interpolation, seed=None):
 		# assert len(shape) == 3
 
 		self.array_key = array_key
@@ -31,6 +32,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 		self.smoothness = smoothness
 		self.noise_strength = noise_strength
 		self.interpolation = interpolation
+		self.seed = seed
 
 	def setup(self):
 
@@ -41,7 +43,16 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 				voxel_size=(1, 1, 1)))
 
 	def provide(self, request):
-		batch = gp.Batch()        
+		batch = gp.Batch() 
+
+		# need to seed here as doing so that each run is independently set
+		seed = 0
+		if self.seed is None:
+			seed = np.random.randint(0, 1000000)
+		else:
+			seed = self.seed
+
+		# print "seed: ", seed
 
 		for (array_key, request_spec) in request.array_specs.items():
 			
@@ -66,7 +77,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 				interpolation=self.interpolation ,
 				smoothness=self.smoothness,
 				noise_strength = self.noise_strength,
-				seed=np.random.random_integers(1000000))
+				seed=seed)
 			segmentation = data["segmentation"]
 
 			# crop (more elegant & general way to do this?)

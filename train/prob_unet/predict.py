@@ -30,11 +30,7 @@ def predict(iteration):
 	joined_affinities_key = ArrayKey('GT_JOINED_AFFINITIES')
 	raw_affinities_key = ArrayKey('RAW_AFFINITIES_KEY')
 	raw_key = ArrayKey('RAW')
-	pred_affinities_1_key = ArrayKey('PREDICTED_AFFS_1')
-	pred_affinities_2_key = ArrayKey('PREDICTED_AFFS_2')
-	pred_affinities_3_key = ArrayKey('PREDICTED_AFFS_3')
-	pred_affinities_4_key = ArrayKey('PREDICTED_AFFS_4')
-	pred_affinities_5_key = ArrayKey('PREDICTED_AFFS_5')
+	pred_affinities_1_key = ArrayKey('PREDICTED_AFFS')
 
 	voxel_size = Coordinate((1, 1, 1))
 	input_shape = Coordinate(config['input_shape']) * voxel_size
@@ -48,11 +44,7 @@ def predict(iteration):
 	request.add(joined_affinities_key, input_shape)
 	request.add(raw_affinities_key, input_shape)
 	request.add(raw_key, input_shape)
-	request.add(pred_affinities_1_key, output_shape)
-	request.add(pred_affinities_2_key, output_shape)
-	request.add(pred_affinities_3_key, output_shape)
-	# request.add(pred_affinities_4_key, output_shape)
-	# request.add(pred_affinities_5_key, output_shape)
+	request.add(pred_affinities_key, output_shape)
 
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
@@ -61,7 +53,8 @@ def predict(iteration):
 			points_per_skeleton=8,
 			smoothness=3,
 			noise_strength=1,
-			interpolation="random") +
+			interpolation="random",
+			seed=0) +
 		AddAffinities(
 			affinity_neighborhood=neighborhood,
 			labels=labels_key,
@@ -86,26 +79,6 @@ def predict(iteration):
 			},
 			outputs={
 				config['pred_affs']: pred_affinities_1_key
-			},
-			graph=os.path.join(setup_dir, 'predict_net.meta')
-		) +
-		Predict(
-			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
-			inputs={
-				config['raw']: raw_key
-			},
-			outputs={
-				config['pred_affs']: pred_affinities_2_key
-			},
-			graph=os.path.join(setup_dir, 'predict_net.meta')
-		) +
-		Predict(
-			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
-			inputs={
-				config['raw']: raw_key
-			},
-			outputs={
-				config['pred_affs']: pred_affinities_3_key
 			},
 			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
@@ -138,11 +111,7 @@ def predict(iteration):
 				labels_key: 'volumes/labels',
 				raw_affinities_key: 'volumes/raw_affs',
 				raw_key: 'volumes/raw',
-				pred_affinities_1_key: 'volumes/pred_affs_1',
-				pred_affinities_2_key: 'volumes/pred_affs_2',
-				pred_affinities_3_key: 'volumes/pred_affs_3',
-				# pred_affinities_4_key: 'volumes/pred_affs_4',
-				# pred_affinities_5_key: 'volumes/pred_affs_5'
+				pred_affinities_key: 'volumes/pred_affs',
 			},
 			output_filename='prob_unet/prediction.hdf',
 			every=1,
