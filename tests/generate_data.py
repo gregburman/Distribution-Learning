@@ -75,24 +75,24 @@ def generate_data(num_batches):
 		 	raw=raw_key,
 		 	sp=0.25,
 		 	sigma=1,
-		 	contrast=0.7) +
+		 	contrast=0.7)
 		 # PreCache(
 			# cache_size=28,
 			# num_workers=7) +
-		 Snapshot(
-		 	dataset_names={
-				labels_key: 'volumes/labels',
-				affinities_key: 'volumes/affinities',
-				joined_affinities_key: 'volumes/joined_affs',
-				raw_key: 'volumes/raw',
-		 	},
-		 	output_dir= "../snapshots/prob_unet/",
-		 	output_filename="test_sample.hdf",
-		 	every=1,
-		 	dataset_dtypes={
-		 		labels_key: np.uint16,
-		 		raw_key: np.float32,
-			})
+		 # Snapshot(
+		 # 	dataset_names={
+			# 	labels_key: 'volumes/labels',
+			# 	affinities_key: 'volumes/affinities',
+			# 	joined_affinities_key: 'volumes/joined_affs',
+			# 	raw_key: 'volumes/raw',
+		 # 	},
+		 # 	output_dir= "../snapshots/prob_unet/",
+		 # 	output_filename="test_sample.hdf",
+		 # 	every=1,
+		 # 	dataset_dtypes={
+		 # 		labels_key: np.uint16,
+		 # 		raw_key: np.float32,
+			# })
 		 # PrintProfilingStats(every=1)
 		)
 
@@ -101,16 +101,16 @@ def generate_data(num_batches):
 		for i in range(num_batches):
 			req = p.request_batch(request)
 			label_hash = np.sum(req[labels_key].data)
-			# print ("data batch generated:", i, ", label_hash:", label_hash)
+			print ("data batch generated:", i, ", label_hash:", label_hash)
 			if label_hash in hashes:
 				print ("DUPLICATE")
 				# break
 			else:
 				hashes.append(label_hash)
-			print ("labels shape: ", req[labels_key].data.dtype)
-			print ("affinities: ", req[affinities_key].data.dtype)
-			print ("affinities_joined: ", req[joined_affinities_key].data.dtype)
-			print ("raw: ", req[raw_key].data.dtype)
+			# print ("labels shape: ", req[labels_key].data.dtype)
+			# print ("affinities: ", req[affinities_key].data.dtype)
+			# print ("affinities_joined: ", req[joined_affinities_key].data.dtype)
+			# print ("raw: ", req[raw_key].data.dtype)
 
 			# plt.imshow(req[raw_key].data[8], cmap="Greys_r")
 			# plt.show()

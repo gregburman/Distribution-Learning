@@ -24,7 +24,7 @@ with open(os.path.join(setup_dir, 'predict_net.json'), 'r') as f:
 
 print ("net config: ", config)
 
-def predict(checkpoint):
+def predict(checkpoint, iterations):
 
 	print ("checkpoint: ", checkpoint)
 
@@ -84,26 +84,6 @@ def predict(checkpoint):
 			},
 			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
-		# Predict(
-		# 	checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % checkpoint),
-		# 	inputs={
-		# 		config['raw']: raw_key
-		# 	},
-		# 	outputs={
-		# 		config['pred_affs']: pred_affinities_4_key
-		# 	},
-		# 	graph=os.path.join(setup_dir, 'predict_net.meta')
-		# ) +
-		# Predict(
-		# 	checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % checkpoint),
-		# 	inputs={
-		# 		config['raw']: raw_key
-		# 	},
-		# 	outputs={
-		# 		config['pred_affs']: pred_affinities_5_key
-		# 	},
-		# 	graph=os.path.join(setup_dir, 'predict_net.meta')
-		# ) +
 		IntensityScaleShift(
 			array=raw_key,
 			scale=0.5,
@@ -115,20 +95,22 @@ def predict(checkpoint):
 				raw_key: 'volumes/raw',
 				pred_affinities_key: 'volumes/pred_affs',
 			},
-			output_filename='prob_unet/prediction.hdf',
+			output_filename='prob_unet/prediction_{id}.hdf',
 			every=1,
 			dataset_dtypes={
+				labels_key: np.uint16,
 				raw_key: np.float32,
 				pred_affinities_key: np.float32,
-				labels_key: np.uint64
-			}) + 
-		PrintProfilingStats(every=20)
+				sample_z_key: np.float32
+			})
+		# PrintProfilingStats(every=1)
 	)
 
 	print("Starting prediction...")
 	with build(pipeline) as p:
-		p.request_batch(request)
+		for i in range(iterations):
+			p.request_batch(request)
 	print("Prediction finished")
 
 if __name__ == "__main__":
-	predict(checkpoint=int(sys.argv[1]))
+	predict(iterations=int(sys.argv[1]), checkpoint=int(sys.argv[2]))
