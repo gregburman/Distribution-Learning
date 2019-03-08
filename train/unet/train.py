@@ -145,7 +145,7 @@ def train(iterations):
 				output_affinities_key: 'volumes/output_affs'
 			},
 			output_filename='unet/train/batch_{iteration}.hdf',
-			every=100,
+			every=200,
 			dataset_dtypes={
 				raw_key: np.float32,
 				labels_key: np.uint64

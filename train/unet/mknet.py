@@ -5,6 +5,7 @@ sys.path.append('../../')
 import tensorflow as tf
 import json
 import mala
+import malis
 
 from models.unet import UNet
 
@@ -53,6 +54,9 @@ def create_network(input_shape, name):
 
 	gt_affs = tf.placeholder(tf.float32, shape=output_shape, name="gt_affs")
 	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
+
+	neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
+	gt_seg = tf.placeholder(tf.int64, shape=input_shape, name='gt_seg')
 	
 	print ("gt_affs: ", gt_affs.shape)
 	print ("pred_logits: ", pred_logits.shape)
@@ -62,7 +66,13 @@ def create_network(input_shape, name):
 	# 	gt_affs,
 	# 	pred_affs,
 	# 	pred_affs_loss_weights)
-	# loss = tf.losses.mean_squared_error(gt_affs, pred_affs, pred_affs_loss_weights)
+
+	loss = malis.malis_loss_op(
+		pred_affs, 
+		gt_affs, 
+		gt_seg,
+		neighborhood)
+
 	loss = tf.losses.sigmoid_cross_entropy(
 		multi_class_labels = gt_affs,
 		logits = pred_logits,

@@ -8,10 +8,13 @@ import json
 import logging
 import numpy as np
 import os
+import malis
 
 from nodes import ToyNeuronSegmentationGenerator
 from nodes import AddJoinedAffinities
 from nodes import AddRealism
+
+loss = malis.malis_loss_op()
 
 logging.basicConfig(level=logging.INFO)
 

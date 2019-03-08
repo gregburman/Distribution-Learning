@@ -122,12 +122,24 @@ def create_network(input_shape, name):
 
 	kl_loss = tf.distributions.kl_divergence(sample_p, sample_q)
 	kl_loss = tf.reshape(kl_loss, [])
+
+	# mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
+
 	sce_loss = tf.losses.sigmoid_cross_entropy(
 		multi_class_labels = gt_affs_out,
 		logits = pred_logits,
 		weights = pred_affs_loss_weights)
-	# mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
-	loss = sce_loss + beta * kl_loss
+
+	mlo = malis.malis_loss_op(
+		affs, 
+		gt_affs, 
+		gt_seg,
+		neighborhood,
+		gt_affs_mask)
+
+	
+	# loss = sce_loss + beta * kl_loss
+	loss = mlo + beta * lk_loss
 	# summary = tf.summary.scalar('loss', loss)
 
 	tf.summary.scalar('kl_loss', kl_loss)
