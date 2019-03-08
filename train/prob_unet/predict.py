@@ -24,13 +24,15 @@ with open(os.path.join(setup_dir, 'predict_net.json'), 'r') as f:
 
 print ("net config: ", config)
 
-def predict(iteration):
+def predict(checkpoint):
+
+	print ("checkpoint: ", checkpoint)
 
 	labels_key = ArrayKey('GT_LABELS')
 	joined_affinities_key = ArrayKey('GT_JOINED_AFFINITIES')
 	raw_affinities_key = ArrayKey('RAW_AFFINITIES_KEY')
 	raw_key = ArrayKey('RAW')
-	pred_affinities_1_key = ArrayKey('PREDICTED_AFFS')
+	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
 
 	voxel_size = Coordinate((1, 1, 1))
 	input_shape = Coordinate(config['input_shape']) * voxel_size
@@ -40,7 +42,7 @@ def predict(iteration):
 	print ("output_size: ", output_shape)
 
 	request = BatchRequest()
-	# request.add(labels_key, input_shape) # TODO: why does adding this request cause a duplication of generations?
+	# request.add(labels_key, input_shape)
 	request.add(joined_affinities_key, input_shape)
 	request.add(raw_affinities_key, input_shape)
 	request.add(raw_key, input_shape)
@@ -73,17 +75,17 @@ def predict(iteration):
 		# Normalize(raw_key) +
 		IntensityScaleShift(raw_key, 2,-1) +
 		Predict(
-			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
+			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % checkpoint),
 			inputs={
 				config['raw']: raw_key
 			},
 			outputs={
-				config['pred_affs']: pred_affinities_1_key
+				config['pred_affs']: pred_affinities_key
 			},
 			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
 		# Predict(
-		# 	checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
+		# 	checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % checkpoint),
 		# 	inputs={
 		# 		config['raw']: raw_key
 		# 	},
@@ -93,7 +95,7 @@ def predict(iteration):
 		# 	graph=os.path.join(setup_dir, 'predict_net.meta')
 		# ) +
 		# Predict(
-		# 	checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % iteration),
+		# 	checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % checkpoint),
 		# 	inputs={
 		# 		config['raw']: raw_key
 		# 	},
@@ -117,8 +119,7 @@ def predict(iteration):
 			every=1,
 			dataset_dtypes={
 				raw_key: np.float32,
-				pred_affinities_1_key: np.float32,
-				pred_affinities_2_key: np.float32,
+				pred_affinities_key: np.float32,
 				labels_key: np.uint64
 			}) + 
 		PrintProfilingStats(every=20)
@@ -130,4 +131,4 @@ def predict(iteration):
 	print("Prediction finished")
 
 if __name__ == "__main__":
-	predict(iteration=int(sys.argv[1]))
+	predict(checkpoint=int(sys.argv[1]))

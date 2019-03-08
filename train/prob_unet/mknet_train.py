@@ -15,10 +15,10 @@ def create_network(input_shape, name):
 
 	print ("MKNET: PROB-UNET TRAIN")
 	print("")
-	beta = 1
+	beta = 1e-3
 	tf.reset_default_graph()
 
-	print ("beta: ", 1)
+	print ("beta: ", beta)
 
 	raw = tf.placeholder(tf.float32, shape=input_shape, name="raw") # for gp
 	raw_batched = tf.reshape(raw, (1, 1) + input_shape, name="raw_batched") # for tf

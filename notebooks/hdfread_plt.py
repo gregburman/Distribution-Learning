@@ -2,53 +2,57 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py
 
+# SETUP
+
 plt.rcParams['figure.figsize'] = [15, 5]
-
+num_rows = 3
 num_samples = 3
-
-f, axes = plt.subplots(3, num_samples)
-print "axes: ", axes.shape
+f, axes = plt.subplots(num_rows, num_samples)
 
 # DATA
 
-f1 = h5py.File('../snapshots/prob_unet/test_sample.hdf', 'r')
-data = [f1['labels'], np.sum(f1['raw_affs'], axis=0), f1['raw_out']]
-# print "data: ", data.keys()
+file = h5py.File('../snapshots/prob_unet/test_sample.hdf', 'r')
+volumes = file['volumes']
+data = [volumes['labels'], volumes['affinities'], volumes['raw']]
+
+shape = data[0].shape
+print "shape: ", shape
+
+cropx = slice(44, 88)
+cropy = slice(44, 88)
+cropz = 65
 
 for i, ax in enumerate(axes[0]):
-    if i > 0: #labels
-		ax.imshow(data[i][22], cmap="Greys_r")
-    else:
-    	ax.imshow(data[i][22])
-    # ax.get_xaxis().set_ticks([])
-    # ax.get_yaxis().set_ticks([])
+	if data[i].name == "/volumes/labels": # labels, todo: base on name
+		labels = data[i]
+		ax.imshow(labels[cropz, cropy, cropx])
+	elif data[i].name == "/volumes/affinities":
+		affs = np.sum(data[i], axis=0)
+		ax.imshow(affs[cropz, cropy, cropx], cmap="Greys_r")
+	elif data[i].name == "/volumes/raw":
+		raw = data[i]
+		ax.imshow(raw[cropz, cropy, cropx], cmap="Greys_r")
 
 # PREDICTIONS
+file_1 = h5py.File('../snapshots/prob_unet/prediction_00000000.hdf', 'r')
+file_2 = h5py.File('../snapshots/prob_unet/prediction_00000001.hdf', 'r')
+file_3 = h5py.File('../snapshots/prob_unet/prediction_00000002.hdf', 'r')
+volumes_1 = file_1['volumes']
+volumes_2 = file_2['volumes']
+volumes_3 = file_3['volumes']
+pred = [volumes_1['pred_affs'], volumes_2['pred_affs'], volumes_3['pred_affs']]
+samples = [volumes_1['sample_z'], volumes_2['sample_z'], volumes_3['sample_z']]
 
+cropz = 21  # todo: base on data size
 
-fp1 = h5py.File('../snapshots/prob_unet/prediction_00000000.hdf', 'r')
-fp2 = h5py.File('../snapshots/prob_unet/prediction_00000001.hdf', 'r')
-fp3 = h5py.File('../snapshots/prob_unet/prediction_00000002.hdf', 'r')
-print "fp1: ", fp1.keys()
-pred_affs = [np.sum(fp1['pred_affs'], axis=0), np.sum(fp2['pred_affs'], axis=0), np.sum(fp3['pred_affs'], axis=0)]
-sample_zs = [fp1['sample_z'], fp2['sample_z'], fp3['sample_z']]
-# print "pred: ", pred_affs
-print "sample_zs: ", sample_zs[0][0]
+for i, ax in enumerate(axes[1]):
+	affs = np.sum(pred[i], axis=0)
+	ax.imshow(affs[cropz], cmap="Greys_r")
 
-axes[1][0].imshow(pred_affs[0][22], cmap="Greys_r")
-axes[1][1].imshow(pred_affs[1][22], cmap="Greys_r")
-axes[1][2].imshow(pred_affs[2][22], cmap="Greys_r")
-
-axes[2][0].imshow(sample_zs[0][0])
-axes[2][1].imshow(sample_zs[1][0])
-axes[2][2].imshow(sample_zs[2][0])
-
-# axes[2].get_yaxis().set_ticks([])
-
-# for i, ax in enumerate(axes[1]):
-# 	ax.imshow(pred[0][22], cmap="Greys_r")
-# 	ax.get_xaxis().set_ticks([])
-
+for i, ax in enumerate(axes[2]):
+	sample_z = samples[i][0]
+	ax.imshow(sample_z)
+	ax.get_yaxis().set_ticks([])
 
 # DISPLAY
 

@@ -152,12 +152,12 @@ def train(iterations):
 				output_affinities_key: 'volumes/output_affs'
 			},
 			output_filename='prob_unet/train/batch_{iteration}.hdf',
-			every=200,
+			every=500,
 			dataset_dtypes={
-				raw_key: np.float32,
 				labels_key: np.uint64
-			})
-		# PrintProfilingStats(every=20)
+				raw_key: np.float32,
+			}) +
+		PrintProfilingStats(every=20)
 	)
 
 	print("Starting training...")

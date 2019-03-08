@@ -26,9 +26,11 @@ print ("net config: ", config)
 
 def predict(checkpoint, iterations):
 
-	labels_key = ArrayKey('GT_LABELS')
-	joined_affinities_key = ArrayKey('GT_JOINED_AFFINITIES')
-	raw_affinities_key = ArrayKey('RAW_AFFINITIES_KEY')
+	print ("checkpoint: ", checkpoint)
+
+	labels_key = ArrayKey('LABELS')
+	affinities_key = ArrayKey('AFFINITIES')
+	joined_affinities_key = ArrayKey('JOINED_AFFINITIES')
 	raw_key = ArrayKey('RAW')
 	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
 	sample_z_key = ArrayKey("SAMPLE_Z")
@@ -42,9 +44,8 @@ def predict(checkpoint, iterations):
 	print ("output_size: ", output_shape)
 
 	request = BatchRequest()
-	# request.add(labels_key, input_shape)
-	# # request.add(joined_affinities_key, input_shape)
-	# request.add(raw_affinities_key, input_shape)
+	request.add(labels_key, input_shape)
+	request.add(affinities_key, input_shape)
 	request.add(raw_key, input_shape)
 	request.add(pred_affinities_key, output_shape)
 	request.add(sample_z_key, sample_shape)
@@ -53,14 +54,14 @@ def predict(checkpoint, iterations):
 		Hdf5Source(
 			filename="snapshots/prob_unet/test_sample.hdf",
 			datasets = {
-				# labels_key: 'labels',
-				# raw_affinities_key: 'raw_affs',
-				raw_key: 'raw_in'
+				labels_key: 'volumes/labels',
+				affinities_key: 'volumes/affinities',
+				raw_key: 'volumes/raw'
 			}) +
 		# Pad(raw_key, size=None) +
 		# Crop(raw_key, read_roi) +
 		# Normalize(raw_key) +
-		# IntensityScaleShift(raw_key, 2,-1) +
+		IntensityScaleShift(raw_key, 2,-1) +
 		Predict(
 			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % checkpoint),
 			inputs={
@@ -72,25 +73,25 @@ def predict(checkpoint, iterations):
 			},
 			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
-		# IntensityScaleShift(
-		# 	array=raw_key,
-		# 	scale=0.5,
-		# 	shift=0.5) +
+		IntensityScaleShift(
+			array=raw_key,
+			scale=0.5,
+			shift=0.5) +
 		Snapshot(
 			dataset_names={
-				# labels_key: 'volumes/labels',
-				# raw_affinities_key: 'volumes/raw_affs',
-				# raw_key: 'volumes/raw',
-				pred_affinities_key: 'pred_affs',
-				sample_z_key: 'sample_z',
+				labels_key: 'volumes/labels',
+				affinities_key: 'volumes/affs',
+				raw_key: 'volumes/raw',
+				pred_affinities_key: 'volumes/pred_affs',
+				sample_z_key: 'volumes/sample_z'
 			},
 			output_filename='prob_unet/prediction_{id}.hdf',
 			every=1,
 			dataset_dtypes={
-				# raw_key: np.float32,
+				labels_key: np.uint16,
+				raw_key: np.float32,
 				pred_affinities_key: np.float32,
-				sample_z_key: np.float32,
-				# labels_key: np.uint64
+				sample_z_key: np.float32
 			})
 		# PrintProfilingStats(every=20)
 	)
@@ -98,7 +99,7 @@ def predict(checkpoint, iterations):
 	print("Starting prediction...")
 	with build(pipeline) as p:
 		for i in range(iterations):
-			p.request_batch(request)
+			req = p.request_batch(request)
 	print("Prediction finished")
 
 if __name__ == "__main__":
