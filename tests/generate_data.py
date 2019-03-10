@@ -30,15 +30,15 @@ def generate_data(num_batches):
 	print ("output_size: ", output_size)
 
 	request = BatchRequest()
-	request.add(labels_key, input_size)
+	request.add(labels_key, output_size)
 	request.add(affinities_key, input_size)
 	request.add(joined_affinities_key, input_size)
 	request.add(raw_key, input_size)
 	# request.add(output_affinities_key, output_size)
 
-	# offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
-	# crop_roi = Roi(offset, output_size)
-	# print("crop_roi: ", crop_roi)
+	offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
+	crop_roi = Roi(offset, output_size)
+	print("crop_roi: ", crop_roi)
 
 	# print ("input_affinities_key: ", input_affinities_key)
 
@@ -64,9 +64,9 @@ def generate_data(num_batches):
 		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
 		# 	labels=labels_key,
 		# 	affinities=output_affinities_key) +
-		# # Crop(
-		# # 	key=input_affinities_key,
-		# # 	roi=crop_roi) 
+		Crop(
+			key=labels_key,
+			roi=crop_roi) +
 		AddJoinedAffinities(
 			input_affinities=affinities_key,
 			joined_affinities=joined_affinities_key) +
@@ -75,24 +75,24 @@ def generate_data(num_batches):
 		 	raw=raw_key,
 		 	sp=0.25,
 		 	sigma=1,
-		 	contrast=0.7)
+		 	contrast=0.7) +
 		 # PreCache(
 			# cache_size=28,
 			# num_workers=7) +
-		 # Snapshot(
-		 # 	dataset_names={
-			# 	labels_key: 'volumes/labels',
-			# 	affinities_key: 'volumes/affinities',
-			# 	joined_affinities_key: 'volumes/joined_affs',
-			# 	raw_key: 'volumes/raw',
-		 # 	},
-		 # 	output_dir= "../snapshots/prob_unet/",
-		 # 	output_filename="test_sample.hdf",
-		 # 	every=1,
-		 # 	dataset_dtypes={
-		 # 		labels_key: np.uint16,
-		 # 		raw_key: np.float32,
-			# })
+		 Snapshot(
+		 	dataset_names={
+				labels_key: 'volumes/labels',
+				affinities_key: 'volumes/affinities',
+				joined_affinities_key: 'volumes/joined_affs',
+				raw_key: 'volumes/raw',
+		 	},
+		 	# output_dir= "",
+		 	output_filename="test_sample.hdf",
+		 	every=1,
+		 	dataset_dtypes={
+		 		labels_key: np.uint16,
+		 		raw_key: np.float32,
+			})
 		 # PrintProfilingStats(every=1)
 		)
 

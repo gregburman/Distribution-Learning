@@ -56,11 +56,15 @@ def create_network(input_shape, name):
 	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
 
 	neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
-	gt_seg = tf.placeholder(tf.int64, shape=input_shape, name='gt_seg')
+	gt_seg = tf.placeholder(tf.int32, shape=output_shape[1:], name='gt_seg')
+	gt_affs_mask = tf.placeholder(tf.int64, shape=output_shape, name='gt_affs_mask')
 	
 	print ("gt_affs: ", gt_affs.shape)
 	print ("pred_logits: ", pred_logits.shape)
 	print ("pred_affs: ", pred_affs.shape)
+	print ("gt_seg: ", gt_seg.shape)
+	print ("gt_affs_mask: ", gt_affs_mask.shape)
+	print ("")
 
 	# loss = tf.losses.mean_squared_error(
 	# 	gt_affs,
@@ -73,10 +77,10 @@ def create_network(input_shape, name):
 		gt_seg,
 		neighborhood)
 
-	loss = tf.losses.sigmoid_cross_entropy(
-		multi_class_labels = gt_affs,
-		logits = pred_logits,
-		weights = pred_affs_loss_weights)
+	# loss = tf.losses.sigmoid_cross_entropy(
+	# 	multi_class_labels = gt_affs,
+	# 	logits = pred_logits,
+	# 	weights = pred_affs_loss_weights)
 
 	# summary = tf.summary.scalar('mse_loss', loss)
 	summary = tf.summary.scalar('sce', loss)
@@ -99,6 +103,8 @@ def create_network(input_shape, name):
 		'raw': raw.name,
 		'pred_affs': pred_affs.name,
 		'gt_affs': gt_affs.name,
+		'gt_seg': gt_seg.name,
+		'gt_affs_mask': gt_affs_mask.name,
 		'pred_affs_loss_weights': pred_affs_loss_weights.name,
 		'loss': loss.name,
 		'optimizer': optimizer.name,

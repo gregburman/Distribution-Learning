@@ -1,6 +1,6 @@
 from __future__ import print_function
 import sys
-sys.path.append('../../')
+sys.path.append('../../../')
 
 import tensorflow as tf
 from  tensorflow_probability import distributions as tfd
@@ -114,9 +114,15 @@ def create_network(input_shape, name):
 	gt_affs_out = tf.placeholder(tf.float32, shape=output_shape, name="gt_affs_out")
 	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
 
+	neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
+	gt_seg = tf.placeholder(tf.int64, shape=output_shape, name='gt_seg')
+	
+
 	print ("gt_affs_out: ", gt_affs_out.shape)
 	print ("pred_logits: ", pred_logits.shape)
 	print ("pred_affs: ", pred_affs.shape)
+	print ("gt_seg: ", gt_seg.shape)
+	print ("")
 
 	sample_p = prior.get_fmaps()
 	sample_q = posterior.get_fmaps()
@@ -126,15 +132,13 @@ def create_network(input_shape, name):
 
 	# mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
 
-	sce_loss = tf.losses.sigmoid_cross_entropy(
-		multi_class_labels = gt_affs_out,
-		logits = pred_logits,
-		weights = pred_affs_loss_weights)
+	# sce_loss = tf.losses.sigmoid_cross_entropy(
+	# 	multi_class_labels = gt_affs_out,
+	# 	logits = pred_logits,
+	# 	weights = pred_affs_loss_weights)
 
-	neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
-	gt_seg = tf.placeholder(tf.int64, shape=input_shape, name='gt_seg')
 
-	mlo = malis.malis_loss_op(
+	mlo_loss = malis.malis_loss_op(
 		pred_affs, 
 		gt_affs_out, 
 		gt_seg,
@@ -142,11 +146,11 @@ def create_network(input_shape, name):
 
 	
 	# loss = sce_loss + beta * kl_loss
-	loss = mlo + beta * kl_loss
+	loss = mlo_loss + beta * kl_loss
 	# summary = tf.summary.scalar('loss', loss)
 
 	tf.summary.scalar('kl_loss', kl_loss)
-	tf.summary.scalar('sce_loss', sce_loss)
+	tf.summary.scalar('mlo_loss', mlo_loss)
 	summary = tf.summary.merge_all()
 
 	# opt = tf.train.AdamOptimizer(
