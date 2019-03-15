@@ -28,7 +28,7 @@ def create_network(input_shape, name):
 		num_conv_passes = 2,
 		down_kernel_size = [3, 3, 3],
 		up_kernel_size = [3, 3, 3],
-		activation_type = "relu",
+		activation_type = tf.nn.relu,
 		downsample_type = "max_pool",
 		upsample_type = "conv_transpose",
 		voxel_size = (1, 1, 1))
@@ -55,15 +55,16 @@ def create_network(input_shape, name):
 	gt_affs = tf.placeholder(tf.float32, shape=output_shape, name="gt_affs")
 	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
 
-	neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
-	gt_seg = tf.placeholder(tf.int32, shape=output_shape[1:], name='gt_seg')
-	gt_affs_mask = tf.placeholder(tf.int64, shape=output_shape, name='gt_affs_mask')
+	# neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
+	# gt_seg = tf.placeholder(tf.int64, shape=output_shape[1:], name='gt_seg')
+	# print ("gt_seg: ", gt_seg)
+	# gt_affs_mask = tf.placeholder(tf.int64, shape=output_shape, name='gt_affs_mask')
 	
-	print ("gt_affs: ", gt_affs.shape)
-	print ("pred_logits: ", pred_logits.shape)
-	print ("pred_affs: ", pred_affs.shape)
-	print ("gt_seg: ", gt_seg.shape)
-	print ("gt_affs_mask: ", gt_affs_mask.shape)
+	print ("pred_affs: ", pred_affs)
+	print ("gt_affs: ", gt_affs)
+	# print ("pred_logits: ", pred_logits.shape)
+	# print ("gt_seg: ", gt_seg)
+	# print ("gt_affs_mask: ", gt_affs_mask)
 	print ("")
 
 	# loss = tf.losses.mean_squared_error(
@@ -71,11 +72,15 @@ def create_network(input_shape, name):
 	# 	pred_affs,
 	# 	pred_affs_loss_weights)
 
-	loss = malis.malis_loss_op(
-		pred_affs, 
-		gt_affs, 
-		gt_seg,
-		neighborhood)
+	# loss = malis.malis_loss_op(
+	# 	pred_affs, 
+	# 	gt_affs, 
+	# 	gt_seg,
+	# 	neighborhood,
+	# 	gt_affs_mask)
+	# print ("gt_seg: ", gt_seg)
+	# print ("loss: ", loss)
+
 
 	# loss = tf.losses.sigmoid_cross_entropy(
 	# 	multi_class_labels = gt_affs,
@@ -83,15 +88,15 @@ def create_network(input_shape, name):
 	# 	weights = pred_affs_loss_weights)
 
 	# summary = tf.summary.scalar('mse_loss', loss)
-	summary = tf.summary.scalar('sce', loss)
+	# summary = tf.summary.scalar('sce', loss)
 
 	# opt = tf.train.AdamOptimizer(
 	# 	learning_rate=0.5e-4,
 	# 	beta1=0.95,
 	# 	beta2=0.999,
 	# 	epsilon=1e-8)
-	opt = tf.train.AdamOptimizer()
-	optimizer = opt.minimize(loss)
+	# opt = tf.train.AdamOptimizer()
+	# optimizer = opt.minimize(loss)
 
 	output_shape = output_shape[1:]
 	print("input shape : %s" % (input_shape,))
@@ -103,31 +108,17 @@ def create_network(input_shape, name):
 		'raw': raw.name,
 		'pred_affs': pred_affs.name,
 		'gt_affs': gt_affs.name,
-		'gt_seg': gt_seg.name,
-		'gt_affs_mask': gt_affs_mask.name,
+		# 'gt_seg': gt_seg.name,
+		# 'gt_affs_mask': gt_affs_mask.name,
 		'pred_affs_loss_weights': pred_affs_loss_weights.name,
-		'loss': loss.name,
-		'optimizer': optimizer.name,
+		# 'loss': loss.name,
+		# 'optimizer': optimizer.name,
 		'input_shape': input_shape,
 		'output_shape': output_shape,
-		'summary': summary.name
+		# 'summary': summary.name
 	}
 	with open(name + '.json', 'w') as f:
 		json.dump(config, f)
 
 if __name__ == "__main__":
-	create_network((132, 132, 132), 'train_net')
-
-
-	# unet, _, _ = mala.networks.unet(
-	# 	fmaps_in=raw_batched,
-	# 	num_fmaps=12,
-	# 	fmap_inc_factors=3,
-	# 	downsample_factors=[[3,3,3],[2,2,2],[2,2,2]])
-
-	# unet = prob_unet.unet(
-	# 	fmaps_in=raw_batched,
-	# 	num_layers=3,
-	# 	base_num_fmaps=12,
-	# 	fmap_inc_factor=3,
-	# 	downsample_factors=[[2,2,2], [2,2,2], [2,2,2]])
+	create_network((132, 132, 132), 'train/unet/train_net')

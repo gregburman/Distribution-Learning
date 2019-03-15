@@ -35,7 +35,7 @@ class FComb():
 
 		# broadcast
 		shape = self.fmaps_in.get_shape()
-		spatial_shape = [shape[axis] for axis in spatial_axis]
+		spatial_shape = [shape[axis].value for axis in spatial_axis]
 		multiples = [1] + spatial_shape
 		multiples.insert(channel_axis, 1)
 
@@ -45,8 +45,9 @@ class FComb():
 			sample = tf.expand_dims(sample, axis=2)
 
 		print ("sample: ", sample.shape)
-
-		broadcast_sample = tf.tile(sample, multiples)
+		print ("reach")
+		broadcast_sample = tf.tile(sample, tf.constant(multiples))
+		print ("reach")
 		fmaps = tf.concat([self.fmaps_in, broadcast_sample], axis=channel_axis)
 
 		print ("broadcast_sample: ", broadcast_sample.shape)

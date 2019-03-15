@@ -69,7 +69,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 					lshape[i] += 1
 			shape = gp.Coordinate(lshape)
 
-			print "create_segmentation..."
+			# print "create_segmentation..."
 			data = create_segmentation(
 				shape=shape,
 				n_objects=self.n_objects,

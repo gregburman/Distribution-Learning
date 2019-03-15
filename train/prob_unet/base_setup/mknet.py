@@ -1,6 +1,6 @@
 from __future__ import print_function
 import sys
-sys.path.append('../../../')
+sys.path.append('../../')
 
 import tensorflow as tf
 # from  tensorflow_probability import distributions as tfd
@@ -11,7 +11,7 @@ from models.unet import UNet
 from models.encoder import Encoder
 from models.f_comb import FComb
 
-def create_network(input_shape, name):
+def create_network(input_shape, setup_dir):
 
 	print ("MKNET: PROB-UNET TRAIN")
 	print("")
@@ -120,17 +120,6 @@ def create_network(input_shape, name):
 	# print ("gt_seg: ", gt_seg.shape)
 	print ("")
 
-	print ("prior: ", prior.get_fmaps())
-
-	# p = prior.get_distrib()
-	# q = posterior.get_distrib()
-
-	# tf.add_to_collection(sample_p, sample_p)
-	# tf.add_to_collection("sample_q", sample_q)
-
-	# kl_loss = tf.distributions.kl_divergence(p, q)
-	# kl_loss = tf.reshape(kl_loss, [], name="kl_loss")
-
 	# mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
 
 	# sce_loss = tf.losses.sigmoid_cross_entropy(
@@ -165,7 +154,7 @@ def create_network(input_shape, name):
 	print("input shape : %s" % (input_shape,))
 	print("output shape: %s" % (output_shape,))
 
-	tf.train.export_meta_graph(filename=name + '.meta')
+	tf.train.export_meta_graph(filename= setup_dir + "weights.meta")
 
 
 
@@ -184,8 +173,12 @@ def create_network(input_shape, name):
 		'latent_dims': 6
 		# 'summary': summary.name,
 	}
-	with open(name + '.json', 'w') as f:
+	with open(setup_dir + 'config.json', 'w') as f:
 		json.dump(config, f)
 
 if __name__ == "__main__":
-	create_network((132, 132, 132), 'train/prob_unet/setup_1/train_net')
+
+	setup_name = sys.argv[1]
+	setup_dir = "train/prob_unet/" + setup_name + "/"
+	print (setup_dir)
+	create_network((132, 132, 132), setup_dir)

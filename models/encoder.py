@@ -1,6 +1,6 @@
 from __future__ import print_function
 import tensorflow as tf
-from  tensorflow_probability import distributions as tfd
+# from  tensorflow_probability import distributions as tfd
 import helper
 
 class Encoder():
@@ -37,6 +37,7 @@ class Encoder():
 		self.name = name
 
 		self.fmaps = None
+		self.distrib = None
 
 	def build(self):
 		print ("BUILD:", self.name)
@@ -86,7 +87,7 @@ class Encoder():
 
 		print ("bottom   : ", fmaps.shape)
 
-		encoding = tf.reduce_mean(fmaps, axis=spacial_axes, keepdims=True)
+		encoding = tf.reduce_mean(fmaps, axis=spacial_axes, keep_dims=True)
 
 		print ("encoding : ", encoding.shape)
 
@@ -99,19 +100,25 @@ class Encoder():
 			activation = self.activation_type,
 			name = "%s_1x1_conv" % (self.name))
 
-		mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes)
+		mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes, name=self.name)
+		self.fmaps = mu_log_sigma # is this "really" the feature maps?
 		mean = mu_log_sigma[:, :self.latent_dims]
 		log_sigma = mu_log_sigma[:, self.latent_dims:]
 
-		f_out = tfd.MultivariateNormalDiag(loc=mean, scale_diag=tf.exp(log_sigma))
-		print ("output   : ", f_out.event_shape)
-		self.fmaps = f_out
+		print ("mu_log_sigma: ", mu_log_sigma.shape)
+
+		self.distrib = tf.contrib.distributions.MultivariateNormalDiag(loc=mean, scale_diag=tf.exp(log_sigma), name=self.name)
+		print ("latent_z   : ", self.distrib.event_shape)
+		# self.fmaps = f_out
 
 	def get_fmaps(self):
 		return self.fmaps
 
+	def get_distrib(self):
+		return self.distrib
+
 	def sample(self):
-		return self.fmaps.sample()
+		return self.distrib.sample()
 
 if __name__ == "__main__":
 

@@ -43,7 +43,7 @@ class UNet():
 		fmaps = self.fmaps_in
 		num_channels = self.base_channels
 		across = []
-
+		print ("ACTIVATION:  ", self.activation_type)
 		print ("fmaps_in : ", fmaps.shape)
 		for layer in range(self.num_layers):
 			for conv_pass in range(self.num_conv_passes):

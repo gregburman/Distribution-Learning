@@ -1,6 +1,6 @@
 from __future__ import print_function
 import sys
-sys.path.append('../../../')
+sys.path.append('../../')
 
 from gunpowder import *
 from gunpowder.tensorflow import *
@@ -17,15 +17,17 @@ from nodes import AddJoinedAffinities
 from nodes import AddRealism
 
 logging.basicConfig(level=logging.INFO)
+
+setup_name = sys.argv[1]
+setup_dir = 'train/prob_unet/' + setup_name + '/'
+with open(setup_dir + 'config.json', 'r') as f:
+		config = json.load(f)
+
 beta = 0
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
-print ("beta: ", beta)
-
-with open('train/prob_unet/setup_1/train_net.json', 'r') as f:
-	config = json.load(f)
-
 def train(iterations):
+
 	tf.reset_default_graph()
 	if tf.train.latest_checkpoint('.'):
 		trained_until = int(tf.train.latest_checkpoint('.').split('_')[-1])
@@ -122,7 +124,7 @@ def train(iterations):
 			cache_size=32,
 			num_workers=8) +
 		Train(
-			graph='train/prob_unet/setup_1/train_net',
+			graph=setup_dir + 'weights',
 			optimizer=add_loss,
 			loss=None,
 			inputs={
@@ -140,8 +142,8 @@ def train(iterations):
 				config['pred_affs']: pred_affinities_gradient_key
 			},
 			summary="Merge/MergeSummary:0",
-			log_dir='log/prob_unet/setup_2',
-			save_every=500) +
+			log_dir='log/prob_unet/' + setup_name,
+			save_every=10) +
 		IntensityScaleShift(
 			array=raw_key,
 			scale=0.5,
@@ -153,8 +155,8 @@ def train(iterations):
 				pred_affinities_key: 'volumes/pred_affs',
 				gt_affs_out_key: 'volumes/output_affs'
 			},
-			output_filename='prob_unet/setup_2/batch_{iteration}.hdf',
-			every=1000,
+			output_filename='prob_unet/' + setup_name + '/batch_{iteration}.hdf',
+			every=10,
 			dataset_dtypes={
 				labels_key: np.uint64,
 				raw_key: np.float32
@@ -216,6 +218,5 @@ def z(fmaps):
 	log_sigma = fmaps[:, config["latent_dims"]:]
 	return tf.contrib.distributions.MultivariateNormalDiag(loc=mean, scale_diag=tf.exp(log_sigma))
 
-
 if __name__ == "__main__":
-	train(iterations=int(sys.argv[1]))
+	train(iterations=int(sys.argv[2]))
