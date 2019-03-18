@@ -4,5 +4,4 @@
 log/
 notebooks/.ipynb_checkpoints/y
 snapshots/
-*checkpoint
-*train_net_checkpoint*
+*checkpoint*
