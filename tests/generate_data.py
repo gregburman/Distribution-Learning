@@ -24,8 +24,8 @@ def generate_data(num_batches):
 	gt_affs_mask = ArrayKey('GT_AFFINITIES_MASK')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate((200,200,200)) * voxel_size
-	output_size = Coordinate((68,68,68)) * voxel_size
+	input_size = Coordinate((132,132,132)) * voxel_size
+	output_size = Coordinate((44,44,44)) * voxel_size
 
 	print ("input_size: ", input_size)
 	print ("output_size: ", output_size)
@@ -81,21 +81,20 @@ def generate_data(num_batches):
 		 PreCache(
 			cache_size=32,
 			num_workers=8) +
-		 # Snapshot(
-		 # 	dataset_names={
-			# 	labels_key: 'volumes/labels',
-			# 	affinities_key: 'volumes/affinities',
-			# 	joined_affinities_key: 'volumes/joined_affs',
-			# 	raw_key: 'volumes/raw',
-			# 	gt_affs_mask: 'volumes/affs_mask'
-		 # 	},
-		 # 	# output_dir= "",
-		 # 	output_filename="test_sample.hdf",
-		 # 	every=1,
-		 # 	dataset_dtypes={
-		 # 		labels_key: np.uint16,
-		 # 		raw_key: np.float32,
-			# })
+		 Snapshot(
+		 	dataset_names={
+				labels_key: 'volumes/labels',
+				affinities_key: 'volumes/affinities',
+				joined_affinities_key: 'volumes/joined_affs',
+				raw_key: 'volumes/raw',
+				gt_affs_mask: 'volumes/affs_mask'
+		 	},
+		 	output_filename="test_sample.hdf",
+		 	every=1,
+		 	dataset_dtypes={
+		 		labels_key: np.uint16,
+		 		raw_key: np.float32,
+			}) +
 		 PrintProfilingStats(every=8)
 		)
 

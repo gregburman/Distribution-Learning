@@ -3,7 +3,6 @@ import sys
 sys.path.append('../../')
 
 import tensorflow as tf
-# from  tensorflow_probability import distributions as tfd
 import json
 import malis
 
@@ -109,37 +108,23 @@ def create_network(input_shape, setup_dir):
 
 	gt_affs_out = tf.placeholder(tf.float32, shape=output_shape, name="gt_affs_out")
 	pred_affs_loss_weights = tf.placeholder(tf.float32, shape=output_shape, name="pred_affs_loss_weights")
-
-	# neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
-	# gt_seg = tf.placeholder(tf.int64, shape=output_shape, name='gt_seg')
 	
-
 	print ("gt_affs_out: ", gt_affs_out.shape)
 	print ("pred_logits: ", pred_logits.shape)
 	print ("pred_affs: ", pred_affs.shape)
-	# print ("gt_seg: ", gt_seg.shape)
 	print ("")
 
-	# mse_loss = tf.losses.mean_squared_error(gt_affs_out, pred_affs, pred_affs_loss_weights)
+	mse_loss = tf.losses.mean_squared_error(
+		gt_affs_out,
+		pred_affs,
+		pred_affs_loss_weights)
 
 	# sce_loss = tf.losses.sigmoid_cross_entropy(
 	# 	multi_class_labels = gt_affs_out,
 	# 	logits = pred_logits,
 	# 	weights = pred_affs_loss_weights)
 
-
-	# mlo_loss = malis.malis_loss_op(
-	# 	pred_affs, 
-	# 	gt_affs_out, 
-	# 	gt_seg,
-	# 	neighborhood)
-	
-	# loss = sce_loss + beta * kl_loss
-	# loss = mlo_loss + beta * kl_loss
-	# summary = tf.summary.scalar('loss', loss)
-
-	# tf.summary.scalar('kl_loss', kl_loss)
-	# tf.summary.scalar('mlo_loss', mlo_loss)
+	summary = tf.summary.scalar('mse_loss', mse_loss)
 	# summary = tf.summary.merge_all()
 
 	# opt = tf.train.AdamOptimizer(
@@ -147,16 +132,14 @@ def create_network(input_shape, setup_dir):
 	# 	beta1=0.95,
 	# 	beta2=0.999,
 	# 	epsilon=1e-8)
-	# opt = tf.train.AdamOptimizer()
-	# optimizer = opt.minimize(loss)
+	opt = tf.train.AdamOptimizer()
+	optimizer = opt.minimize(mse_loss)
 
 	output_shape = output_shape[1:]
 	print("input shape : %s" % (input_shape,))
 	print("output shape: %s" % (output_shape,))
 
-	tf.train.export_meta_graph(filename= setup_dir + "weights.meta")
-
-
+	tf.train.export_meta_graph(filename= setup_dir + "train_net.meta")
 
 	config = {
 		'raw': raw.name,
@@ -164,16 +147,16 @@ def create_network(input_shape, setup_dir):
 		'gt_affs_in': gt_affs_in.name,
 		'gt_affs_out': gt_affs_out.name,
 		'pred_affs_loss_weights': pred_affs_loss_weights.name,
-		# 'kl_loss': kl_loss.name,
-		# 'optimizer': optimizer.name,
+		'loss': mse_loss.name,
+		'optimizer': optimizer.name,
 		'input_shape': input_shape,
 		'output_shape': output_shape,
 		'prior': prior.get_fmaps().name,
 		'posterior': posterior.get_fmaps().name,
-		'latent_dims': 6
-		# 'summary': summary.name,
+		'latent_dims': 6,
+		'summary': summary.name,
 	}
-	with open(setup_dir + 'config.json', 'w') as f:
+	with open(setup_dir + 'train_config.json', 'w') as f:
 		json.dump(config, f)
 
 if __name__ == "__main__":

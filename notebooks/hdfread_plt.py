@@ -20,12 +20,12 @@ print "shape: ", shape
 
 cropx = slice(44, 88)
 cropy = slice(44, 88)
-cropz = 65
+cropz = 66
 
 for i, ax in enumerate(axes[0]):
 	if data[i].name == "/volumes/labels": # labels, todo: base on name
 		labels = data[i]
-		ax.imshow(labels[cropz, cropy, cropx])
+		ax.imshow(labels[22])
 	elif data[i].name == "/volumes/affinities":
 		affs = np.sum(data[i], axis=0)
 		ax.imshow(affs[cropz, cropy, cropx], cmap="Greys_r")
@@ -34,9 +34,9 @@ for i, ax in enumerate(axes[0]):
 		ax.imshow(raw[cropz, cropy, cropx], cmap="Greys_r")
 
 # PREDICTIONS
-file_1 = h5py.File('../snapshots/prob_unet/prediction_00000000.hdf', 'r')
-file_2 = h5py.File('../snapshots/prob_unet/prediction_00000001.hdf', 'r')
-file_3 = h5py.File('../snapshots/prob_unet/prediction_00000002.hdf', 'r')
+file_1 = h5py.File('../snapshots/prob_unet/setup_4/prediction_00000000.hdf', 'r')
+file_2 = h5py.File('../snapshots/prob_unet/setup_4/prediction_00000001.hdf', 'r')
+file_3 = h5py.File('../snapshots/prob_unet/setup_4/prediction_00000002.hdf', 'r')
 volumes_1 = file_1['volumes']
 volumes_2 = file_2['volumes']
 volumes_3 = file_3['volumes']

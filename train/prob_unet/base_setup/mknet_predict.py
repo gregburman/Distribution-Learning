@@ -3,7 +3,7 @@ import sys
 sys.path.append('../../')
 
 import tensorflow as tf
-from  tensorflow_probability import distributions as tfd
+# from  tensorflow_probability import distributions as tfd
 import json
 
 from models.unet import UNet
@@ -11,18 +11,17 @@ from models.encoder import Encoder
 from models.f_comb import FComb
 
 
-def create_network(input_shape, name):
+def create_network(input_shape, setup_dir):
 
 	print ("MKNET: PROB-UNET SAMPLE")
 	print("")
-
 	tf.reset_default_graph()
 
 	raw = tf.placeholder(tf.float32, shape=input_shape, name="raw") # for gp
 	raw_batched = tf.reshape(raw, (1, 1) + input_shape, name="raw_batched") # for tf
 
-	# print ("raw_batched: ", raw_batched.shape)
-	# print ("")
+	print ("raw_batched: ", raw_batched.shape)
+	print ("")
 
 	unet = UNet(
 		fmaps_in = raw_batched,
@@ -34,7 +33,7 @@ def create_network(input_shape, name):
 		num_conv_passes = 2,
 		down_kernel_size = [3, 3, 3],
 		up_kernel_size = [3, 3, 3],
-		activation_type = "relu",
+		activation_type = tf.nn.relu,
 		downsample_type = "max_pool",
 		upsample_type = "conv_transpose",
 		voxel_size = (1, 1, 1))
@@ -52,7 +51,7 @@ def create_network(input_shape, name):
 		padding_type = "valid",
 		num_conv_passes = 2,
 		down_kernel_size = [3, 3, 3],
-		activation_type = "relu",
+		activation_type = tf.nn.relu,
 		downsample_type = "max_pool",
 		voxel_size = (1, 1, 1),
 		name = "prior")
@@ -65,7 +64,7 @@ def create_network(input_shape, name):
 		num_1x1_convs = 3,
 		num_channels = 12,
 		padding_type = 'valid',
-		activation_type = 'relu',
+		activation_type = tf.nn.relu,
 		voxel_size = (1, 1, 1))
 	f_comb.build()
 	print ("")
@@ -87,7 +86,7 @@ def create_network(input_shape, name):
 
 	pred_logits = tf.squeeze(pred_logits, axis=[0], name="pred_logits")
 	pred_affs = tf.squeeze(pred_affs, axis=[0], name="pred_affs")
-
+	
 	# sample_z = tf.squeeze(prior.sample(), axis=[0], name="sample_z")
 	sample_z = prior.sample()
 	sample_z_batched = tf.reshape(sample_z, (1, 1, 6), name="sample_z") # for tf
@@ -100,7 +99,7 @@ def create_network(input_shape, name):
 	print("input shape : %s"%(input_shape,))
 	print("output shape: %s"%(output_shape,))
 
-	tf.train.export_meta_graph(filename=name + '.meta')
+	tf.train.export_meta_graph(filename=setup_dir + 'predict_weights.meta')
 
 	config = {
 		'raw': raw.name,
@@ -109,8 +108,17 @@ def create_network(input_shape, name):
 		'output_shape': output_shape,
 		'sample_z': sample_z_batched.name
 	}
-	with open(name + '.json', 'w') as f:
+	with open(setup_dir + 'predict_config.json', 'w') as f:
 		json.dump(config, f)
 
+def z(fmaps, latent_dims):
+	mean = fmaps[:, :latent_dims]
+	log_sigma = fmaps[:, latent_dims:]
+	return tf.contrib.distributions.MultivariateNormalDiag(loc=mean, scale_diag=tf.exp(log_sigma))
+
 if __name__ == "__main__":
-	create_network((132, 132, 132), 'predict_net')
+
+	setup_name = sys.argv[1]
+	setup_dir = "train/prob_unet/" + setup_name + "/"
+	print (setup_dir)
+	create_network((132, 132, 132), setup_dir)
