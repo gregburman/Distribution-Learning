@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 
 setup_name = sys.argv[1]
 setup_dir = 'train/prob_unet/' + setup_name + '/'
-with open(setup_dir + 'train_config.json', 'r') as f:
+with open(setup_dir + 'config.json', 'r') as f:
 	config = json.load(f)
 
 beta = 1e-10
@@ -92,7 +92,7 @@ def train(iterations):
 			labels=labels_key,
 			affinities=gt_affs_in_key)
 
-	pipeline +=	GrowBoundary(labels_key, steps=1, only_xy=True)
+	pipeline += GrowBoundary(labels_key, steps=1, only_xy=True)
 
 	pipeline += AddAffinities(
 			affinity_neighborhood=neighborhood,
@@ -147,7 +147,7 @@ def train(iterations):
 		train_optimizer = config['optimizer']
 		train_summary = config['summary']
 		# train_inputs[config['pred_affs_loss_weights']] = input_affinities_scale_key
-	else:
+	else: # switch to malis
 		train_loss = None
 		train_optimizer = add_malis_loss
 		train_inputs['gt_seg:0'] = labels_key
@@ -155,7 +155,7 @@ def train(iterations):
 		train_summary = 'Merge/MergeSummary:0'
 
 	pipeline += Train(
-			graph=setup_dir + 'train_weights',
+			graph=setup_dir + 'weights',
 			optimizer=train_optimizer,
 			loss=train_loss,
 			inputs=train_inputs,
