@@ -24,8 +24,8 @@ def generate_data(num_batches):
 	gt_affs_mask = ArrayKey('GT_AFFINITIES_MASK')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate((20,20,20)) * voxel_size
-	output_size = Coordinate((10,10,10)) * voxel_size
+	input_size = Coordinate((132,132,132)) * voxel_size
+	output_size = Coordinate((44,44,44)) * voxel_size
 
 	print ("input_size: ", input_size)
 	print ("output_size: ", output_size)
@@ -47,7 +47,7 @@ def generate_data(num_batches):
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
-			n_objects=5,
+			n_objects=50,
 			points_per_skeleton=8,
 			smoothness=3,
 			noise_strength = 1,
@@ -76,7 +76,7 @@ def generate_data(num_batches):
 		 AddRealism(
 		 	joined_affinities=joined_affinities_key,
 		 	raw=raw_key,
-		 	sp=0.25,
+		 	sp=0.65,
 		 	sigma=1,
 		 	contrast=0.7) +
 		 # PreCache(
@@ -90,7 +90,7 @@ def generate_data(num_batches):
 				raw_key: 'volumes/raw',
 				gt_affs_mask: 'volumes/affs_mask'
 		 	},
-		 	output_filename="test_sample.hdf",
+		 	output_filename="sp_65.hdf",
 		 	every=1,
 		 	dataset_dtypes={
 		 		labels_key: np.uint16,
@@ -117,8 +117,8 @@ def generate_data(num_batches):
 			# print ("raw: ", req[raw_key].data.dtype)
 			# print ("gt_affs_mask: ", req[gt_affs_mask].data.dtype)
 
-			plt.imshow(req[labels_key].data[0])
-			plt.show()
+			# plt.imshow(req[labels_key].data[0])
+			# plt.show()
 
 if __name__ == "__main__":
 	print("Generating data...")
