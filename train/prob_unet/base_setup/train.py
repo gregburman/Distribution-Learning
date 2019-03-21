@@ -23,8 +23,8 @@ setup_dir = 'train/prob_unet/' + setup_name + '/'
 with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
-beta = 1e-10
-phase_switch = 0
+beta = 0
+phase_switch = 1000
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
 def train(iterations):
@@ -155,7 +155,7 @@ def train(iterations):
 		train_summary = 'Merge/MergeSummary:0'
 
 	pipeline += Train(
-			graph=setup_dir + 'train_weights',
+			graph=setup_dir + 'train_net',
 			optimizer=train_optimizer,
 			loss=train_loss,
 			inputs=train_inputs,

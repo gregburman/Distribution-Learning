@@ -132,8 +132,8 @@ def train(iterations):
 		pipeline += RenumberConnectedComponents(labels=labels_key)
 
 	pipeline += PreCache(
-			cache_size=32,
-			num_workers=8)
+			cache_size=24,
+			num_workers=6)
 
 	train_inputs = {
 		config['raw']: raw_key,
