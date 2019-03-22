@@ -20,11 +20,11 @@ logging.basicConfig(level=logging.INFO)
 
 setup_name = sys.argv[1]
 setup_dir = 'train/prob_unet/' + setup_name + '/'
-with open(setup_dir + 'config.json', 'r') as f:
+with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
 beta = 1e-10
-phase_switch = 0
+phase_switch = 1000
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
 def train(iterations):
@@ -92,7 +92,7 @@ def train(iterations):
 			labels=labels_key,
 			affinities=gt_affs_in_key)
 
-	pipeline += GrowBoundary(labels_key, steps=1, only_xy=True)
+	pipeline +=	GrowBoundary(labels_key, steps=1, only_xy=True)
 
 	pipeline += AddAffinities(
 			affinity_neighborhood=neighborhood,
@@ -107,7 +107,7 @@ def train(iterations):
 	pipeline += AddRealism(
 			joined_affinities = joined_affinities_key,
 			raw = raw_key,
-			sp=0.25,
+			sp=0.65,
 			sigma=1,
 			contrast=0.7)
 
@@ -132,8 +132,8 @@ def train(iterations):
 		pipeline += RenumberConnectedComponents(labels=labels_key)
 
 	pipeline += PreCache(
-			cache_size=24,
-			num_workers=6)
+			cache_size=32,
+			num_workers=8)
 
 	train_inputs = {
 		config['raw']: raw_key,
@@ -147,7 +147,7 @@ def train(iterations):
 		train_optimizer = config['optimizer']
 		train_summary = config['summary']
 		# train_inputs[config['pred_affs_loss_weights']] = input_affinities_scale_key
-	else: # switch to malis
+	else:
 		train_loss = None
 		train_optimizer = add_malis_loss
 		train_inputs['gt_seg:0'] = labels_key
@@ -155,7 +155,7 @@ def train(iterations):
 		train_summary = 'Merge/MergeSummary:0'
 
 	pipeline += Train(
-			graph=setup_dir + 'weights',
+			graph=setup_dir + 'train_net',
 			optimizer=train_optimizer,
 			loss=train_loss,
 			inputs=train_inputs,
@@ -167,7 +167,7 @@ def train(iterations):
 			},
 			summary=train_summary,
 			log_dir='log/prob_unet/' + setup_name,
-			save_every=100)
+			save_every=1000)
 
 	pipeline += IntensityScaleShift(
 			array=raw_key,
@@ -182,7 +182,7 @@ def train(iterations):
 				gt_affs_out_key: 'volumes/output_affs'
 			},
 			output_filename='prob_unet/' + setup_name + '/batch_{iteration}.hdf',
-			every=100,
+			every=2000,
 			dataset_dtypes={
 				labels_key: np.uint64,
 				raw_key: np.float32

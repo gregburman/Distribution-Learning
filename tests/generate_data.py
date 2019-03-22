@@ -51,7 +51,8 @@ def generate_data(num_batches):
 			points_per_skeleton=8,
 			smoothness=3,
 			noise_strength = 1,
-			interpolation="random") + 
+			interpolation="random",
+			seed=0) + 
 		AddAffinities(
 			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
 			labels=labels_key,
@@ -75,12 +76,12 @@ def generate_data(num_batches):
 		 AddRealism(
 		 	joined_affinities=joined_affinities_key,
 		 	raw=raw_key,
-		 	sp=0.25,
+		 	sp=0.65,
 		 	sigma=1,
 		 	contrast=0.7) +
-		 PreCache(
-			cache_size=32,
-			num_workers=8) +
+		 # PreCache(
+			# cache_size=32,
+			# num_workers=8) +
 		 Snapshot(
 		 	dataset_names={
 				labels_key: 'volumes/labels',
@@ -89,13 +90,13 @@ def generate_data(num_batches):
 				raw_key: 'volumes/raw',
 				gt_affs_mask: 'volumes/affs_mask'
 		 	},
-		 	output_filename="test_sample.hdf",
+		 	output_filename="sp_65.hdf",
 		 	every=1,
 		 	dataset_dtypes={
 		 		labels_key: np.uint16,
 		 		raw_key: np.float32,
-			}) +
-		 PrintProfilingStats(every=8)
+			})
+		 # PrintProfilingStats(every=8)
 		)
 
 	hashes = []
@@ -109,13 +110,14 @@ def generate_data(num_batches):
 				# break
 			else:
 				hashes.append(label_hash)
+
 			# print ("labels: ", req[labels_key].data.dtype)
 			# print ("affinities: ", req[affinities_key].data.dtype)
 			# # print ("affinities_joined: ", req[joined_affinities_key].data.dtype)
 			# print ("raw: ", req[raw_key].data.dtype)
 			# print ("gt_affs_mask: ", req[gt_affs_mask].data.dtype)
 
-			# plt.imshow(req[raw_key].data[8], cmap="Greys_r")
+			# plt.imshow(req[labels_key].data[0])
 			# plt.show()
 
 if __name__ == "__main__":

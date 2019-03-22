@@ -80,6 +80,10 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 				seed=seed)
 			segmentation = data["segmentation"]
 
+			# pick random lable:
+			random_label = np.random.randint(1, self.n_objects+1)
+			print ("random_label: ", random_label)
+
 			# crop (more elegant & general way to do this?)
 			segmentation = segmentation[:lshape[0] - inc[0], :lshape[1] - inc[1], :lshape[2] - inc[2]]
 			# segmentation = segmentation[:lshape_out[i] - inc[i] for i in range(len(shape))]
