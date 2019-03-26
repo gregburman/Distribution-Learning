@@ -52,8 +52,6 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 		else:
 			seed = self.seed
 
-		# print "seed: ", seed
-
 		for (array_key, request_spec) in request.array_specs.items():
 			
 			array_spec = self.spec[array_key].copy()
@@ -69,7 +67,6 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 					lshape[i] += 1
 			shape = gp.Coordinate(lshape)
 
-			# print "create_segmentation..."
 			data = create_segmentation(
 				shape=shape,
 				n_objects=self.n_objects,
@@ -79,15 +76,11 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 				noise_strength = self.noise_strength,
 				seed=seed)
 			segmentation = data["segmentation"]
-
-			# pick random lable:
-			random_label = np.random.randint(1, self.n_objects+1)
-			print ("random_label: ", random_label)
-
+			
 			# crop (more elegant & general way to do this?)
 			segmentation = segmentation[:lshape[0] - inc[0], :lshape[1] - inc[1], :lshape[2] - inc[2]]
 			# segmentation = segmentation[:lshape_out[i] - inc[i] for i in range(len(shape))]
-
+			
 			batch.arrays[array_key] = gp.Array(segmentation, array_spec)
 
 		return batch

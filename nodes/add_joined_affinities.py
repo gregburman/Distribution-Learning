@@ -31,7 +31,10 @@ class AddJoinedAffinities(BatchFilter):
 		input_affinities = batch.arrays[self.input_affinities].data.copy()
 		affs1 = input_affinities[0]
 		affs2 = input_affinities[1]
+		affs3 = input_affinities[2]
+
 		joined_affinities = np.logical_and(affs1 == 1, affs2 == 1)
+		joined_affinities = np.logical_and(joined_affinities, affs3 == 1)
 
 		# crop to requested ROI
 		joined_affinities = self.__crop_center(joined_affinities, joined_affinities_roi.get_shape())

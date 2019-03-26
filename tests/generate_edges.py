@@ -6,6 +6,7 @@ from gunpowder import *
 from nodes import ToyNeuronSegmentationGenerator
 from nodes import AddJoinedAffinities
 from nodes import AddRealism
+from nodes import mergeLabels
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
@@ -18,10 +19,13 @@ logging.basicConfig(level=logging.INFO)
 def generate_data(num_batches):
 
 	labels_key = ArrayKey('GT_LABELS')
-	affinities_key= ArrayKey('AFFINITIES')
-	joined_affinities_key= ArrayKey('JOINED_AFFINITIES')
+	affinities_pos_key= ArrayKey('AFFINITIES_POS')
+	affinities_neg_key= ArrayKey('AFFINITIES_NEG')
+	joined_affinities_pos_key= ArrayKey('JOINED_AFFINITIES_POS')
+	joined_affinities_neg_key= ArrayKey('JOINED_AFFINITIES_NEG')
 	raw_key = ArrayKey('RAW')
 	gt_affs_mask = ArrayKey('GT_AFFINITIES_MASK')
+	merged_labels_key = ArrayKey('MERGED_LABELS')
 
 	voxel_size = Coordinate((1, 1, 1))
 	input_size = Coordinate((132,132,132)) * voxel_size
@@ -32,9 +36,12 @@ def generate_data(num_batches):
 
 	request = BatchRequest()
 	request.add(labels_key, input_size)
-	request.add(affinities_key, input_size)
-	request.add(gt_affs_mask, input_size)
-	request.add(joined_affinities_key, input_size)
+	request.add(affinities_pos_key, input_size)
+	request.add(affinities_neg_key, input_size)
+	# request.add(gt_affs_mask, input_size)
+	request.add(joined_affinities_pos_key, input_size)
+	request.add(joined_affinities_neg_key, input_size)
+	request.add(merged_labels_key, input_size)
 	# request.add(raw_key, input_size)
 	# request.add(output_affinities_key, output_size)
 
@@ -47,7 +54,7 @@ def generate_data(num_batches):
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
-			n_objects=50,
+			n_objects=15,
 			points_per_skeleton=5,
 			smoothness=3,
 			noise_strength = 1,
@@ -56,8 +63,11 @@ def generate_data(num_batches):
 		AddAffinities(
 			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
 			labels=labels_key,
-			affinities=affinities_key,
-			affinities_mask=gt_affs_mask) +
+			affinities=affinities_neg_key) +
+		AddAffinities(
+			affinity_neighborhood=[[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+			labels=labels_key,
+			affinities=affinities_pos_key) +
 		# GrowBoundary(labels_key, steps=1, only_xy=True) +
 		# AddAffinities(
 		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
@@ -71,8 +81,17 @@ def generate_data(num_batches):
 		# 	key=labels_key,
 		# 	roi=crop_roi) +
 		AddJoinedAffinities(
-			input_affinities=affinities_key,
-			joined_affinities=joined_affinities_key) +
+			input_affinities=affinities_pos_key,
+			joined_affinities=joined_affinities_pos_key) +
+		AddJoinedAffinities(
+			input_affinities=affinities_neg_key,
+			joined_affinities=joined_affinities_neg_key) +
+		mergeLabels(
+			n_objects = 15,
+			labels = labels_key,
+			joined_pos_affinities = joined_affinities_pos_key,
+			joined_neg_affinities = joined_affinities_neg_key,
+			merged_labels = merged_labels_key) + 
 		#  AddRealism(
 		#  	joined_affinities=joined_affinities_key,
 		#  	raw=raw_key,
@@ -85,15 +104,18 @@ def generate_data(num_batches):
 		 Snapshot(
 		 	dataset_names={
 				labels_key: 'volumes/labels',
-				affinities_key: 'volumes/affinities',
-				joined_affinities_key: 'volumes/joined_affs',
+				# joined_affinities_pos_key: 'volumes/affinities_neg',
+				# joined_affinities_neg_key: 'volumes/affinities_pos',
+				# joined_affinities_key: 'volumes/joined_affs',
+				merged_labels_key: 'volumes/merged_labels',
 				# raw_key: 'volumes/raw',
 				# gt_affs_mask: 'volumes/affs_mask'
 		 	},
-		 	output_filename="edges.hdf",
+		 	output_filename="test_edges.hdf",
 		 	every=1,
 		 	dataset_dtypes={
 		 		labels_key: np.uint16,
+		 		merged_labels_key: np.uint16,
 		 		raw_key: np.float32,
 			})
 		 # PrintProfilingStats(every=8)
