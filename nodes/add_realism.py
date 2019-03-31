@@ -20,18 +20,20 @@ class AddRealism(BatchFilter):
 
 
 	def prepare(self, request):
+		if self.joined_affinities not in request:
+			request[self.joined_affinities] = request[self.raw].copy()
 		request[self.joined_affinities].roi = request[self.raw].roi.copy()
 
 
 	def process(self, batch, request):
-		joined_affinities = batch[self.joined_affinities].data.copy()
+		joined_affinities = batch.arrays[self.joined_affinities].data.copy()
 
 		raw = random_noise(joined_affinities, 's&p', amount=self.sp)
 		raw = gaussian(raw,self.sigma)
 		raw = raw * self.contrast
 
 		spec = self.spec[self.raw].copy()
-		spec.roi = request[self.raw].roi
+		spec.roi = request[self.raw].roi.copy()
 		batch.arrays[self.raw] = gp.Array(raw, spec)
 
 		roi = request[self.joined_affinities].roi

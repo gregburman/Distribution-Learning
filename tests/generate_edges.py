@@ -6,7 +6,7 @@ from gunpowder import *
 from nodes import ToyNeuronSegmentationGenerator
 from nodes import AddJoinedAffinities
 from nodes import AddRealism
-from nodes import mergeLabels
+from nodes import MergeLabels
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
@@ -18,120 +18,151 @@ logging.basicConfig(level=logging.INFO)
 
 def generate_data(num_batches):
 
-	labels_key = ArrayKey('GT_LABELS')
-	affinities_pos_key= ArrayKey('AFFINITIES_POS')
-	affinities_neg_key= ArrayKey('AFFINITIES_NEG')
-	joined_affinities_pos_key= ArrayKey('JOINED_AFFINITIES_POS')
-	joined_affinities_neg_key= ArrayKey('JOINED_AFFINITIES_NEG')
+	neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
+	neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+
+# define array-keys
+	labels_key = ArrayKey('LABELS')
+	
+	raw_affs_key = ArrayKey('RAW_AFFINITIES')
+	raw_joined_affs_key = ArrayKey('RAW_JOINED_AFFINITIES')
 	raw_key = ArrayKey('RAW')
-	gt_affs_mask = ArrayKey('GT_AFFINITIES_MASK')
+
+	affs_key = ArrayKey('AFFINITIES')
+	affs_opp_key = ArrayKey('AFFINITIES_OPP')
+	joined_affs_key = ArrayKey('JOINED_AFFINITIES')
+	joined_affs_opp_key = ArrayKey('JOINED_AFFINITIES_OPP')
 	merged_labels_key = ArrayKey('MERGED_LABELS')
 
-	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate((132,132,132)) * voxel_size
-	output_size = Coordinate((44,44,44)) * voxel_size
+	gt_affs_key = ArrayKey('GT_AFFINITIES')
+	gt_affs_in_key = ArrayKey('GT_AFFINITIES_IN')
+	gt_affs_mask_key = ArrayKey('GT_AFFINITIES_MASK')
 
-	print ("input_size: ", input_size)
-	print ("output_size: ", output_size)
+	voxel_size = Coordinate((1, 1, 1))
+	input_shape = Coordinate((132,132,132)) * voxel_size
+	input_affs_shape = Coordinate([i + 1 for i in (132,132,132)]) * voxel_size
+	output_shape = Coordinate((44,44,44)) * voxel_size
+	output_affs_shape = Coordinate([i + 1 for i in (44,44,44)]) * voxel_size
+
+	print ("input_shape: ", input_shape)
+	print ("output_shape: ", output_shape)
 
 	request = BatchRequest()
-	request.add(labels_key, input_size)
-	request.add(affinities_pos_key, input_size)
-	request.add(affinities_neg_key, input_size)
-	# request.add(gt_affs_mask, input_size)
-	request.add(joined_affinities_pos_key, input_size)
-	request.add(joined_affinities_neg_key, input_size)
-	request.add(merged_labels_key, input_size)
-	# request.add(raw_key, input_size)
-	# request.add(output_affinities_key, output_size)
+	request.add(labels_key, output_shape)
 
-	offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
-	crop_roi = Roi(offset, output_size)
+	request.add(raw_key, input_shape)
+	request.add(raw_affs_key, input_shape)
+	request.add(raw_joined_affs_key, input_shape)
+
+	request.add(affs_key, input_affs_shape)
+	request.add(affs_opp_key, input_affs_shape)
+	request.add(joined_affs_key, input_affs_shape)
+	request.add(joined_affs_opp_key, input_affs_shape)
+	request.add(merged_labels_key, output_shape)
+
+	request.add(gt_affs_key, output_shape)
+	request.add(gt_affs_in_key, input_shape)
+	request.add(gt_affs_mask_key, output_shape)
+
+	# offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
+	# crop_roi = Roi(offset, output_size)
 	# print("crop_roi: ", crop_roi)
 
 	# print ("input_affinities_key: ", input_affinities_key)
 
-	pipeline = (
-		ToyNeuronSegmentationGenerator(
+	pipeline = ()
+	# print ("iteration: ", iteration)
+	pipeline += ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
 			n_objects=15,
-			points_per_skeleton=5,
+			points_per_skeleton=8,
 			smoothness=3,
-			noise_strength = 1,
-			interpolation="random",
-			seed=0) + 
-		AddAffinities(
-			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
+			noise_strength=1,
+			interpolation="linear")
+
+	pipeline += AddAffinities(
+			affinity_neighborhood=neighborhood,
 			labels=labels_key,
-			affinities=affinities_neg_key) +
-		AddAffinities(
-			affinity_neighborhood=[[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+			affinities=raw_affs_key)
+
+	pipeline += AddJoinedAffinities(
+			input_affinities=raw_affs_key,
+			joined_affinities=raw_joined_affs_key)
+
+	pipeline += AddRealism(
+			joined_affinities = raw_joined_affs_key,
+			raw = raw_key,
+			sp=0.25,
+			sigma=1,
+			contrast=0.7)
+
+	pipeline += AddAffinities(
+			affinity_neighborhood=neighborhood,
 			labels=labels_key,
-			affinities=affinities_pos_key) +
-		# GrowBoundary(labels_key, steps=1, only_xy=True) +
-		# AddAffinities(
-		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-		# 	labels=labels_key,
-		# 	affinities=input_affinities_key) +
-		# AddAffinities(
-		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-		# 	labels=labels_key,
-		# 	affinities=output_affinities_key) +
-		# Crop(
-		# 	key=labels_key,
-		# 	roi=crop_roi) +
-		AddJoinedAffinities(
-			input_affinities=affinities_pos_key,
-			joined_affinities=joined_affinities_pos_key) +
-		AddJoinedAffinities(
-			input_affinities=affinities_neg_key,
-			joined_affinities=joined_affinities_neg_key) +
-		mergeLabels(
-			n_objects = 15,
+			affinities=affs_key)
+
+	pipeline += AddAffinities(
+			affinity_neighborhood=neighborhood_opp,
+			labels=labels_key,
+			affinities=affs_opp_key)
+
+	pipeline += AddJoinedAffinities(
+			input_affinities=affs_key,
+			joined_affinities=joined_affs_key)
+
+	pipeline += AddJoinedAffinities(
+			input_affinities=affs_opp_key,
+			joined_affinities=joined_affs_opp_key)
+
+	pipeline += MergeLabels(
 			labels = labels_key,
-			joined_pos_affinities = joined_affinities_pos_key,
-			joined_neg_affinities = joined_affinities_neg_key,
-			merged_labels = merged_labels_key) + 
-		#  AddRealism(
-		#  	joined_affinities=joined_affinities_key,
-		#  	raw=raw_key,
-		#  	sp=0.25,
-		#  	sigma=1,
-		#  	contrast=0.7) +
-		#  # PreCache(
-		# 	# cache_size=32,
-		# 	# num_workers=8) +
-		 Snapshot(
-		 	dataset_names={
-				labels_key: 'volumes/labels',
-				# joined_affinities_pos_key: 'volumes/affinities_neg',
-				# joined_affinities_neg_key: 'volumes/affinities_pos',
-				# joined_affinities_key: 'volumes/joined_affs',
-				merged_labels_key: 'volumes/merged_labels',
-				# raw_key: 'volumes/raw',
-				# gt_affs_mask: 'volumes/affs_mask'
-		 	},
-		 	output_filename="test_edges.hdf",
-		 	every=1,
-		 	dataset_dtypes={
-		 		labels_key: np.uint16,
-		 		merged_labels_key: np.uint16,
-		 		raw_key: np.float32,
-			})
-		 # PrintProfilingStats(every=8)
-		)
+			joined_affinities = joined_affs_key,
+			joined_affinities_opp = joined_affs_opp_key,
+			merged_labels = merged_labels_key,
+			every = 1) 
+
+	# # pipeline += GrowBoundary(merged_labels_key, steps=1, only_xy=True)
+
+	pipeline += AddAffinities(
+			affinity_neighborhood=neighborhood,
+			labels=merged_labels_key,
+			affinities=gt_affs_in_key)
+
+	pipeline += AddAffinities(
+			affinity_neighborhood=neighborhood,
+			labels=merged_labels_key,
+			affinities=gt_affs_key,
+			affinities_mask=gt_affs_mask_key)
+
+
+
+	# pipeline += Snapshot(
+	# 		dataset_names={
+	# 			labels_key: 'volumes/labels',
+	# 			merged_labels_key: 'volumes/merged_labels',
+	# 			raw_key: 'volumes/raw',
+	# 			raw_affs_key: 'volumes/raw_affs',
+	# 			gt_affs_key: 'volumes/gt_affs',
+	# 			gt_affs_in_key: 'volumes/gt_affs_in'
+	# 		},
+	# 		output_filename='test_edges.hdf',
+	# 		every=1,
+	# 		dataset_dtypes={
+	# 			merged_labels_key: np.uint64,
+	# 			labels_key: np.uint64,
+	# 			raw_key: np.float32
+			# })
+
+	pipeline += PrintProfilingStats(every=10)
 
 	hashes = []
 	with build(pipeline) as p:
 		for i in range(num_batches):
+			# print("iteration: ", i)
 			req = p.request_batch(request)
-			label_hash = np.sum(req[labels_key].data)
-			print ("data batch generated:", i, ", label_hash:", label_hash)
-			if label_hash in hashes:
-				print ("DUPLICATE")
-				# break
-			else:
-				hashes.append(label_hash)
+			# merged_labels = req[merged_labels_key].data
+			# unique = np.unique(merged_labels)
+			# print (len(unique))
 
 			# print ("labels: ", req[labels_key].data.dtype)
 			# print ("affinities: ", req[affinities_key].data.dtype)

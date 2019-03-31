@@ -22,13 +22,14 @@ class AddJoinedAffinities(BatchFilter):
 
 
 	def prepare(self, request):
+		if self.input_affinities not in request:
+			request[self.input_affinities] = request[self.joined_affinities].copy()
 		request[self.input_affinities].roi = request[self.joined_affinities].roi.copy()
 
 
 	def process (self, batch, request):
-		joined_affinities_roi = request[self.joined_affinities].roi.copy()
-
 		input_affinities = batch.arrays[self.input_affinities].data.copy()
+
 		affs1 = input_affinities[0]
 		affs2 = input_affinities[1]
 		affs3 = input_affinities[2]
@@ -37,6 +38,7 @@ class AddJoinedAffinities(BatchFilter):
 		joined_affinities = np.logical_and(joined_affinities, affs3 == 1)
 
 		# crop to requested ROI
+		joined_affinities_roi = request[self.joined_affinities].roi.copy()
 		joined_affinities = self.__crop_center(joined_affinities, joined_affinities_roi.get_shape())
 
 		spec = self.spec[self.joined_affinities].copy()
