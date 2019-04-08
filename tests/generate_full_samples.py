@@ -153,8 +153,8 @@ def generate_full_samples(num_batches):
 	hashes = []
 	with build(pipeline) as p:
 		for i in range(num_batches):
-			print("\nDATA POINT: ", i)
 			req = p.request_batch(request)
+<<<<<<< HEAD
 			# print ("labels shape: ", req[labels_key].shape)
 			label_hash = np.sum(req[labels_key].data)
 			print ("label_hash:", label_hash)
@@ -163,6 +163,17 @@ def generate_full_samples(num_batches):
 				# break
 			else:
 				hashes.append(label_hash)
+=======
+			# print ("labels shape: ", req[labels_key].data.shape)
+			label_hash = np.sum(req[labels_key].data)
+			print ("\nDATA POINT:", i, ", label_hash:", label_hash)
+			# print("")
+			# if label_hash in hashes:
+			# 	print ("DUPLICATE")
+			# 	# break
+			# else:
+			# 	hashes.append(label_hash)
+>>>>>>> 325068afbf4d36c577dc47dd8ec5840c493b1e2c
 
 if __name__ == "__main__":
 	print("Generating data...")

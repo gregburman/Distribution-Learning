@@ -75,7 +75,7 @@ class MergeLabels(BatchFilter):
 
 			r_index = mask_indices[:, random_point]
 
-			# print("random_label: ", random_label)
+			# print "random_label: ", random_label
 
 			random_neighbour = 0
 			for i in range(-1, 2):
@@ -85,7 +85,7 @@ class MergeLabels(BatchFilter):
 								label = labels[r_index[0] + i, r_index[1] +j, r_index[2] + k]
 								if label != random_label:
 									random_neighbour = label
-									# print("random_neighbour: ", random_neighbour)
+									# print "random_neighbour: ", random_neighbour
 									break
 							except Exception as e:
 								# print(e)
@@ -98,7 +98,6 @@ class MergeLabels(BatchFilter):
 					break
 
 			merged = np.where(labels == random_neighbour, random_label, labels)
-			# print("remaining_labels: ", np.unique(merged).shape)	
 			spec = self.spec[self.merged_labels].copy()
 			spec.roi = request[self.merged_labels].roi
 			batch.arrays[self.merged_labels] = gp.Array(merged, spec)

@@ -156,9 +156,17 @@ def train(iterations):
 			sigma=1,
 			contrast=0.7)
 
-	pipeline += PickRandomLabel(
-			input_labels = [labels_key] + merged_labels_keys,
-			output_label=picked_labels_key)
+	if phase == "euclid":
+
+		pipeline += PickRandomLabel(
+				input_labels = [labels_key],
+				output_label=picked_labels_key)
+
+	else: 
+
+		pipeline += PickRandomLabel(
+				input_labels = [labels_key] + merged_labels_keys,
+				output_label=picked_labels_key)
 
 	# pipeline += GrowBoundary(merged_labels_key, steps=1, only_xy=True)
 
