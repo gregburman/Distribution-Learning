@@ -47,14 +47,14 @@ def generate_full_samples(num_batches):
 	output_affs_shape = Coordinate([i + 1 for i in (44,44,44)]) * voxel_size
 
 	print ("input_shape: ", input_shape)
-	print ("output_shape: ", input_shape)
+	print ("output_shape: ", output_shape)
 
 	request = BatchRequest()
 	request.add(labels_key, input_shape)
 	
-	request.add(gt_affs_key, input_shape)
-	request.add(gt_joined_affs_key, input_shape)
-	request.add(raw_key, input_shape)
+	# request.add(gt_affs_key, input_shape)
+	# request.add(gt_joined_affs_key, input_shape)
+	# request.add(raw_key, input_shape)
 
 
 	request.add(affs_neg_key, input_affs_shape)
@@ -70,27 +70,27 @@ def generate_full_samples(num_batches):
 
 	pipeline += ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
-			n_objects=15,
+			n_objects=50,
 			points_per_skeleton=8,
 			smoothness=3,
 			noise_strength=1,
 			interpolation="linear")
 
-	pipeline += AddAffinities(
-			affinity_neighborhood=neighborhood,
-			labels=labels_key,
-			affinities=gt_affs_key)
+	# pipeline += AddAffinities(
+	# 		affinity_neighborhood=neighborhood,
+	# 		labels=labels_key,
+	# 		affinities=gt_affs_key)
 
-	pipeline += AddJoinedAffinities(
-			input_affinities=gt_affs_key,
-			joined_affinities=gt_joined_affs_key)
+	# pipeline += AddJoinedAffinities(
+	# 		input_affinities=gt_affs_key,
+	# 		joined_affinities=gt_joined_affs_key)
 
-	pipeline += AddRealism(
-			joined_affinities = gt_joined_affs_key,
-			raw = raw_key,
-			sp=0.25,
-			sigma=1,
-			contrast=0.7)
+	# pipeline += AddRealism(
+	# 		joined_affinities = gt_joined_affs_key,
+	# 		raw = raw_key,
+	# 		sp=0.25,
+	# 		sigma=1,
+	# 		contrast=0.7)
 
 	pipeline += AddAffinities(
 			affinity_neighborhood=neighborhood,
@@ -125,33 +125,27 @@ def generate_full_samples(num_batches):
 				labels=merged_labels_key[i],
 				affinities=merged_affs_key[i])
 
-	# pipeline += PreCache(
-	# 	cache_size=32,
-	# 	num_workers=8)
+	pipeline += PreCache(
+		cache_size=32,
+		num_workers=8)
 
 	dataset_names = {
 		labels_key: 'volumes/labels',
-		# gt_affs_key: 'volumes/gt_affs',
-		# raw_key: 'volumes/raw'
 	}
 
 	dataset_dtypes = {
 		labels_key: np.uint64,
-		# raw_key: np.float32,
 	}
 
-	# for i in range(num_merges):
-	# 	dataset_names[merged_labels_key[i]] = 'volumes/merged_labels_%i'%(i+1)
-	# 	# dataset_names[merged_affs_key[i]] = 'volumes/gt_affs_%i'%(i+1)
-	# 	dataset_names[merged_affs_key[i]] = 'test.hdf'
+	for i in range(num_merges):
+		dataset_names[merged_labels_key[i]] = 'volumes/merged_labels_%i'%(i+1)
+		dataset_dtypes[merged_labels_key[i]] = np.uint64
 
-	# 	dataset_dtypes[merged_labels_key[i]] = np.uint64
-
-	# pipeline += Snapshot(
-	# 	dataset_names=dataset_names,
-	# 	# output_filename='gt_1_merge_3/batch_{id}.hdf',
-	# 	every=1,
-	# 	dataset_dtypes=dataset_dtypes)
+	pipeline += Snapshot(
+		dataset_names=dataset_names,
+		output_filename='gt_1_merge_3/batch_{id}.hdf',
+		every=1,
+		dataset_dtypes=dataset_dtypes)
 
 	# pipeline += PrintProfilingStats(every=10)
 
@@ -159,16 +153,16 @@ def generate_full_samples(num_batches):
 	hashes = []
 	with build(pipeline) as p:
 		for i in range(num_batches):
-			print("\nDATA POINT: ", i)
 			req = p.request_batch(request)
-			print ("labels shape: ", req[labels_key].shape)
+			# print ("labels shape: ", req[labels_key].data.shape)
 			label_hash = np.sum(req[labels_key].data)
-			print (", label_hash:", label_hash)
-			if label_hash in hashes:
-				print ("DUPLICATE")
-				# break
-			else:
-				hashes.append(label_hash)
+			print ("\nDATA POINT:", i, ", label_hash:", label_hash)
+			# print("")
+			# if label_hash in hashes:
+			# 	print ("DUPLICATE")
+			# 	# break
+			# else:
+			# 	hashes.append(label_hash)
 
 if __name__ == "__main__":
 	print("Generating data...")
