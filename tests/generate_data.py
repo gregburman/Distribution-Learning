@@ -24,40 +24,42 @@ def generate_data(num_batches):
 	gt_affs_mask = ArrayKey('GT_AFFINITIES_MASK')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate((132,132,132)) * voxel_size
-	output_size = Coordinate((44,44,44)) * voxel_size
+	input_size = Coordinate((528,528,528)) * voxel_size
+	# output_size = Coordinate((44,44,44)) * voxel_size
 
 	print ("input_size: ", input_size)
-	print ("output_size: ", output_size)
+	# print ("output_size: ", output_size)
 
 	request = BatchRequest()
 	request.add(labels_key, input_size)
-	request.add(affinities_key, input_size)
-	request.add(gt_affs_mask, input_size)
-	request.add(joined_affinities_key, input_size)
+	# request.add(affinities_key, input_size)
+	# request.add(gt_affs_mask, input_size)
+	# request.add(joined_affinities_key, input_size)
 	# request.add(raw_key, input_size)
 	# request.add(output_affinities_key, output_size)
 
-	offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
-	crop_roi = Roi(offset, output_size)
+	# offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
+	# crop_roi = Roi(offset, output_size)
 	# print("crop_roi: ", crop_roi)
 
 	# print ("input_affinities_key: ", input_affinities_key)
 
+	# seeds = [i for in range(10)]
+	np.random.seed(0)
+
 	pipeline = (
 		ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
-			n_objects=50,
+			n_objects=3200,
 			points_per_skeleton=5,
 			smoothness=3,
 			noise_strength = 1,
-			interpolation="random",
-			seed=0) + 
-		AddAffinities(
-			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-			labels=labels_key,
-			affinities=affinities_key,
-			affinities_mask=gt_affs_mask) +
+			interpolation="random") +
+		# AddAffinities(
+		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
+		# 	labels=labels_key,
+		# 	affinities=affinities_key,
+		# 	affinities_mask=gt_affs_mask) +
 		# GrowBoundary(labels_key, steps=1, only_xy=True) +
 		# AddAffinities(
 		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
@@ -70,18 +72,18 @@ def generate_data(num_batches):
 		# Crop(
 		# 	key=labels_key,
 		# 	roi=crop_roi) +
-		AddJoinedAffinities(
-			input_affinities=affinities_key,
-			joined_affinities=joined_affinities_key) +
+		# AddJoinedAffinities(
+		# 	input_affinities=affinities_key,
+		# 	joined_affinities=joined_affinities_key) +
 		#  AddRealism(
 		#  	joined_affinities=joined_affinities_key,
 		#  	raw=raw_key,
 		#  	sp=0.25,
 		#  	sigma=1,
 		#  	contrast=0.7) +
-		#  # PreCache(
-		# 	# cache_size=32,
-		# 	# num_workers=8) +
+		 PreCache(
+			cache_size=4,
+			num_workers=2)
 		 Snapshot(
 		 	dataset_names={
 				labels_key: 'volumes/labels',
@@ -95,16 +97,19 @@ def generate_data(num_batches):
 		 	dataset_dtypes={
 		 		labels_key: np.uint16,
 		 		raw_key: np.float32,
+		 		gt_affs_1:
+		 		gt_affs_2:
 			})
-		 # PrintProfilingStats(every=8)
+		 PrintProfilingStats(every=20)
 		)
 
 	hashes = []
 	with build(pipeline) as p:
 		for i in range(num_batches):
+			print("\nDATA POINT: ", i)
 			req = p.request_batch(request)
 			label_hash = np.sum(req[labels_key].data)
-			print ("data batch generated:", i, ", label_hash:", label_hash)
+			print (", label_hash:", label_hash)
 			if label_hash in hashes:
 				print ("DUPLICATE")
 				# break
@@ -122,5 +127,7 @@ def generate_data(num_batches):
 
 if __name__ == "__main__":
 	print("Generating data...")
+	t0 = time.time()
 	generate_data(num_batches=int(sys.argv[1]))
+	print("time: ", time.time() - t0)
 	print ("Data generation test finished.")

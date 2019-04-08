@@ -1,6 +1,7 @@
 *.pyc
 *.meta
 *.json
+data/
 log/
 notebooks/.ipynb_checkpoints/y
 snapshots/

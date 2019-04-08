@@ -72,6 +72,7 @@ def generate_data(num_batches):
 
 	pipeline = ()
 	# print ("iteration: ", iteration)
+
 	pipeline += ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
 			n_objects=15,
@@ -119,7 +120,7 @@ def generate_data(num_batches):
 			joined_affinities = joined_affs_key,
 			joined_affinities_opp = joined_affs_opp_key,
 			merged_labels = merged_labels_key,
-			every = 1) 
+			every = 2) 
 
 	# # pipeline += GrowBoundary(merged_labels_key, steps=1, only_xy=True)
 
@@ -134,31 +135,35 @@ def generate_data(num_batches):
 			affinities=gt_affs_key,
 			affinities_mask=gt_affs_mask_key)
 
+	pipeline += PreCache(
+		cache_size=4,
+		num_workers=2)
+	
+	pipeline += Snapshot(
+			dataset_names={
+				labels_key: 'volumes/labels',
+				merged_labels_key: 'volumes/merged_labels',
+				raw_key: 'volumes/raw',
+				raw_affs_key: 'volumes/raw_affs',
+				gt_affs_key: 'volumes/gt_affs',
+				gt_affs_in_key: 'volumes/gt_affs_in'
+			},
+			output_filename='test_edges.hdf',
+			every=1,
+			dataset_dtypes={
+				merged_labels_key: np.uint64,
+				labels_key: np.uint64,
+				raw_key: np.float32
+			})
+
+	pipeline += PrintProfilingStats(every=100)
 
 
-	# pipeline += Snapshot(
-	# 		dataset_names={
-	# 			labels_key: 'volumes/labels',
-	# 			merged_labels_key: 'volumes/merged_labels',
-	# 			raw_key: 'volumes/raw',
-	# 			raw_affs_key: 'volumes/raw_affs',
-	# 			gt_affs_key: 'volumes/gt_affs',
-	# 			gt_affs_in_key: 'volumes/gt_affs_in'
-	# 		},
-	# 		output_filename='test_edges.hdf',
-	# 		every=1,
-	# 		dataset_dtypes={
-	# 			merged_labels_key: np.uint64,
-	# 			labels_key: np.uint64,
-	# 			raw_key: np.float32
-			# })
-
-	pipeline += PrintProfilingStats(every=10)
 
 	hashes = []
 	with build(pipeline) as p:
 		for i in range(num_batches):
-			# print("iteration: ", i)
+			print("iteration: ", i)
 			req = p.request_batch(request)
 			# merged_labels = req[merged_labels_key].data
 			# unique = np.unique(merged_labels)

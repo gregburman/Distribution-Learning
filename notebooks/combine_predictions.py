@@ -4,9 +4,9 @@ import h5py
 
 f, axes = plt.subplots(1, 3)
 
-file_1 = h5py.File('../snapshots/prob_unet/setup_4/prediction_00000000.hdf', 'r')
-file_2 = h5py.File('../snapshots/prob_unet/setup_4/prediction_00000001.hdf', 'r')
-file_3 = h5py.File('../snapshots/prob_unet/setup_4/prediction_00000002.hdf', 'r')
+file_1 = h5py.File('../snapshots/prob_unet/setup_8/prediction_00000000.hdf', 'r')
+file_2 = h5py.File('../snapshots/prob_unet/setup_8/prediction_00000001.hdf', 'r')
+file_3 = h5py.File('../snapshots/prob_unet/setup_8/prediction_00000002.hdf', 'r')
 
 pred_1 = np.sum(np.array(file_1['volumes']['pred_affs']), axis=0)
 pred_2 = np.sum(np.array(file_2['volumes']['pred_affs']), axis=0)

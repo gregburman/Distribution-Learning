@@ -3,6 +3,7 @@ import random
 import gunpowder as gp
 from gunpowder.nodes.batch_provider import BatchProvider
 from skelerator.forest import create_segmentation
+import multiprocessing as mp
 
 class ToyNeuronSegmentationGenerator(BatchProvider):
 	"""
@@ -33,6 +34,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 		self.noise_strength = noise_strength
 		self.interpolation = interpolation
 		self.seed = seed
+		# self.n = 0
 
 	def setup(self):
 
@@ -42,16 +44,12 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 				roi=gp.Roi(offset=gp.Coordinate((-10000, -10000, -10000)), shape=gp.Coordinate((20000, 20000, 20000))),
 				voxel_size=(1, 1, 1)))
 
+
 	def provide(self, request):
-		batch = gp.Batch() 
-
-		# need to seed here as doing so that each run is independently set
-		seed = 0
-		if self.seed is None:
-			seed = np.random.randint(0, 1000000)
-		else:
-			seed = self.seed
-
+		batch = gp.Batch()
+		# print "n:", self.n
+		# print "pid: ", mp.current_process().pid
+		
 		for (array_key, request_spec) in request.array_specs.items():
 			
 			array_spec = self.spec[array_key].copy()
@@ -74,7 +72,7 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 				interpolation=self.interpolation ,
 				smoothness=self.smoothness,
 				noise_strength = self.noise_strength,
-				seed=seed)
+				seed=self.seed)
 			segmentation = data["segmentation"]
 			
 			# crop (more elegant & general way to do this?)
@@ -82,5 +80,5 @@ class ToyNeuronSegmentationGenerator(BatchProvider):
 			# segmentation = segmentation[:lshape_out[i] - inc[i] for i in range(len(shape))]
 			
 			batch.arrays[array_key] = gp.Array(segmentation, array_spec)
-
+		# self.n +=1
 		return batch

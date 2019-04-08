@@ -16,8 +16,12 @@ from nodes import ToyNeuronSegmentationGenerator
 from nodes import AddJoinedAffinities
 from nodes import AddRealism
 from nodes import MergeLabels
+from nodes import PickRandomLabel
 
 logging.basicConfig(level=logging.INFO)
+
+data_dir = "data/gt_1_merge_3"
+samples = ["batch_%08i"%i for i in range(2000)]
 
 setup_name = sys.argv[1]
 setup_dir = 'train/prob_unet/' + setup_name + '/'
@@ -25,7 +29,7 @@ with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
 beta = 1e-10
-phase_switch = 0
+phase_switch = 2000
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
@@ -46,17 +50,24 @@ def train(iterations):
 	print("Training in phase %s until %i"%(phase, iterations))
 		
 	# define array-keys
-	labels_key = ArrayKey('LABELS')
-	
+	labels_key = ArrayKey('LABELS')	
 	raw_affs_key = ArrayKey('RAW_AFFINITIES')
 	raw_joined_affs_key = ArrayKey('RAW_JOINED_AFFINITIES')
 	raw_key = ArrayKey('RAW')
+	
+	merged_labels_keys = []
+	# merged_affs_keys = []
+	picked_labels_key = ArrayKey('PICKED_RANDOM_LABEL')
 
-	affs_key = ArrayKey('AFFINITIES')
-	affs_opp_key = ArrayKey('AFFINITIES_OPP')
-	joined_affs_key = ArrayKey('JOINED_AFFINITIES')
-	joined_affs_opp_key = ArrayKey('JOINED_AFFINITIES_OPP')
-	merged_labels_key = ArrayKey('MERGED_LABELS')
+	affs_neg_key = ArrayKey('AFFINITIES')
+	affs_pos_key = ArrayKey('AFFINITIES_OPP')
+	joined_affs_neg_key = ArrayKey('JOINED_AFFINITIES')
+	joined_affs_pos_key = ArrayKey('JOINED_AFFINITIES_OPP')
+
+	num_merges = 3
+	for i in range(num_merges):
+		merged_labels_keys.append(ArrayKey('MERGED_LABELS_%i'%(i+1)))
+
 
 	gt_affs_key = ArrayKey('GT_AFFINITIES')
 	gt_affs_in_key = ArrayKey('GT_AFFINITIES_IN')
@@ -78,38 +89,56 @@ def train(iterations):
 	print ("output_affs_shape: ", output_affs_shape)
 
 	request = BatchRequest()
-	request.add(labels_key, output_shape)
+	request.add(labels_key, input_shape)
 
-	request.add(raw_key, input_shape)
 	request.add(raw_affs_key, input_shape)
 	request.add(raw_joined_affs_key, input_shape)
+	request.add(raw_key, input_shape)
 
-	request.add(affs_key, input_affs_shape)
-	request.add(affs_opp_key, input_affs_shape)
-	request.add(joined_affs_key, input_affs_shape)
-	request.add(joined_affs_opp_key, input_affs_shape)
-	request.add(merged_labels_key, output_shape)
+	for i in range(num_merges): # pick a label to request here too
+		request.add(merged_labels_keys[i], input_shape)
+		# request.add(merged_affs_keys[i], input_shape)
+
+	request.add(picked_labels_key, output_shape)		
 
 	request.add(gt_affs_key, output_shape)
 	request.add(gt_affs_in_key, input_shape)
 	request.add(gt_affs_mask_key, output_shape)
 	request.add(gt_affs_scale_key, output_shape)
 
-	request.add(pred_affs_key, output_shape)
+	# request.add(pred_affs_key, output_shape)
 
 	# offset = Coordinate((input_shape[i]-output_shape[i])/2 for i in range(len(input_shape)))
 	# crop_roi = Roi(offset, output_shape)
 	# print("crop_roi: ", crop_roi)
 
-	pipeline = ()
-	# print ("iteration: ", iteration)
-	pipeline += ToyNeuronSegmentationGenerator(
-			array_key=labels_key,
-			n_objects=50,
-			points_per_skeleton=8,
-			smoothness=3,
-			noise_strength=1,
-			interpolation="linear")
+	dataset_names = {
+		labels_key: 'volumes/labels',
+	}
+
+	array_specs = {
+		labels_key: ArraySpec(interpolatable=False)
+	}
+
+	for i in range(num_merges):
+		dataset_names[merged_labels_keys[i]] = 'volumes/merged_labels_%i'%(i+1)
+		array_specs[merged_labels_keys[i]] = ArraySpec(interpolatable=False)
+
+	pipeline = tuple(
+		Hdf5Source(
+            os.path.join(data_dir, sample + '.hdf'),
+            datasets = dataset_names,
+            array_specs = array_specs
+        ) +
+        Pad(labels_key, None) +
+        Pad(merged_labels_keys[0], None) +
+        Pad(merged_labels_keys[1], None) +
+        Pad(merged_labels_keys[2], None)
+        # Pad(merged_labels_key[i], None) for i in range(num_merges) # don't know why this doesn't work
+        for sample in samples
+		)
+
+	pipeline += RandomProvider()
 
 	pipeline += AddAffinities(
 			affinity_neighborhood=neighborhood,
@@ -127,41 +156,20 @@ def train(iterations):
 			sigma=1,
 			contrast=0.7)
 
-	pipeline += AddAffinities(
-			affinity_neighborhood=neighborhood,
-			labels=labels_key,
-			affinities=affs_key)
-
-	pipeline += AddAffinities(
-			affinity_neighborhood=neighborhood_opp,
-			labels=labels_key,
-			affinities=affs_opp_key)
-
-	pipeline += AddJoinedAffinities(
-			input_affinities=affs_key,
-			joined_affinities=joined_affs_key)
-
-	pipeline += AddJoinedAffinities(
-			input_affinities=affs_opp_key,
-			joined_affinities=joined_affs_opp_key)
-
-	pipeline += MergeLabels(
-			labels = labels_key,
-			joined_affinities = joined_affs_key,
-			joined_affinities_opp = joined_affs_opp_key,
-			merged_labels = merged_labels_key,
-			every = 2) 
+	pipeline += PickRandomLabel(
+			input_labels = [labels_key] + merged_labels_keys,
+			output_label=picked_labels_key)
 
 	# pipeline += GrowBoundary(merged_labels_key, steps=1, only_xy=True)
 
 	pipeline += AddAffinities(
 			affinity_neighborhood=neighborhood,
-			labels=merged_labels_key,
+			labels=picked_labels_key,
 			affinities=gt_affs_in_key)
 
 	pipeline += AddAffinities(
 			affinity_neighborhood=neighborhood,
-			labels=merged_labels_key,
+			labels=picked_labels_key,
 			affinities=gt_affs_key,
 			affinities_mask=gt_affs_mask_key)
 
@@ -184,11 +192,11 @@ def train(iterations):
 		# 	key=merged_labels_key,
 		# 	roi=crop_roi)
 		pipeline += RenumberConnectedComponents(
-			labels=merged_labels_key)
+			labels=picked_labels_key)
 
 	pipeline += PreCache(
-			cache_size=32,
-			num_workers=8)
+			cache_size=8,
+			num_workers=4)
 
 	train_inputs = {
 		config['raw']: raw_key,
@@ -205,7 +213,7 @@ def train(iterations):
 	else:
 		train_loss = None
 		train_optimizer = add_malis_loss
-		train_inputs['gt_seg:0'] = merged_labels_key # XXX question
+		train_inputs['gt_seg:0'] = picked_labels_key
 		train_inputs['gt_affs_mask:0'] = gt_affs_mask_key
 		train_summary = 'Merge/MergeSummary:0'
 
@@ -231,7 +239,9 @@ def train(iterations):
 
 	pipeline += Snapshot(
 			dataset_names={
-				merged_labels_key: 'volumes/labels',
+				labels_key: 'volumes/labels',
+				picked_labels_key: 'volumes/merged_labels',
+				raw_affs_key: 'volumes/raw_affs',
 				raw_key: 'volumes/raw',
 				pred_affs_key: 'volumes/pred_affs',
 				gt_affs_key: 'volumes/gt_affs'
@@ -239,7 +249,7 @@ def train(iterations):
 			output_filename='prob_unet/' + setup_name + '/batch_{iteration}.hdf',
 			every=4000,
 			dataset_dtypes={
-				merged_labels_key: np.uint64,
+				picked_labels_key: np.uint64,
 				raw_key: np.float32
 			})
 
@@ -249,6 +259,7 @@ def train(iterations):
 	with build(pipeline) as p:
 		for i in range(iterations - trained_until):
 			req = p.request_batch(request)
+			# print(req[picked_labels_key])
 	print("Training finished")
 
 def add_malis_loss(graph):

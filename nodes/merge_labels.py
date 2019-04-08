@@ -4,11 +4,12 @@ from gunpowder.nodes.batch_filter import BatchFilter
 
 class MergeLabels(BatchFilter):
 
-	def __init__(self, labels, joined_affinities, joined_affinities_opp, merged_labels, every = 1):
+	def __init__(self, labels, joined_affinities, joined_affinities_opp, merged_labels, cropped_roi, every = 1):
 		self.labels = labels
 		self.joined_affinities = joined_affinities
 		self.joined_affinities_opp = joined_affinities_opp
 		self.merged_labels = merged_labels
+		self.cropped_roi = cropped_roi
 		self.every = every
 		self.n = 0
 
@@ -25,30 +26,36 @@ class MergeLabels(BatchFilter):
 		request[self.labels].roi = request[self.merged_labels].roi.copy()
 
 
+
+
 	def process(self, batch, request):
+
+		self.n += 1
 		
 		labels = batch.arrays[self.labels].data.copy()
 		if self.do_merge:
 			joined_affinities = np.array(batch.arrays[self.joined_affinities].data.copy(), np.int16)
 			joined_affinities_opp = np.array(batch.arrays[self.joined_affinities_opp].data.copy(), np.int16)
 			fully_joined = np.logical_and(joined_affinities == 1, joined_affinities_opp == 1)
+			
+			if self.cropped_roi == None:
+				indices = np.indices(labels.shape)
+				available_labels = np.unique(labels)
+				random_label = np.random.choice(available_labels)
+				mask_edge = np.where((fully_joined == False) & (labels == random_label), random_label, 0)
+			else:
+				labels_cropped = self.__crop_center(labels, self.cropped_roi)
+				fully_joined_cropped = self.__crop_center(fully_joined, self.cropped_roi)
+				indices = np.indices(labels_cropped.shape)
+				available_labels = np.unique(labels_cropped)
+				random_label = np.random.choice(available_labels)
+				mask_edge = np.where((fully_joined_cropped == False) & (labels_cropped == random_label), random_label, 0)
 
-			available_labels = np.unique(labels)
-			random_label = np.random.choice(available_labels)
-
-			# print("available_labels: ", available_labels.shape)			
-
-			# print("random_label: ", random_label)
-			# print("joined_affinities: ", joined_affinities.shape)
-			# print("joined_affinities_opp: ", joined_affinities_opp.shape)
-
-			# fully_joined = fully_joined[:-1, :-1, :-1]
-			mask_edge = np.where((fully_joined == False) & (labels == random_label), random_label, 0)
-
-			indices = np.indices(labels.shape)
 			mask_indices = indices[:, mask_edge == random_label]
 			random_point = np.random.randint(1, mask_indices.shape[1])
 			r_index = mask_indices[:, random_point]
+
+			# print("random_label: ", random_label)
 
 			random_neighbour = 0
 			for i in range(-1, 2):
@@ -85,4 +92,10 @@ class MergeLabels(BatchFilter):
 
 			roi = request[self.labels].roi
 			batch.arrays[self.labels] = batch.arrays[self.labels].crop(roi)
-		self.n += 1
+
+	def __crop_center(self, img, crop):
+		z, y,x = img.shape
+		startz = z//2-(crop[0]//2)
+		starty = y//2-(crop[1]//2)
+		startx = x//2-(crop[2]//2)    
+		return img[startz:startz+crop[0], starty:starty+crop[1],startx:startx+crop[2]]
