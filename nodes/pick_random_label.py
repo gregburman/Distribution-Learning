@@ -7,9 +7,10 @@ logger = logging.getLogger(__name__)
 
 class PickRandomLabel(BatchFilter):
 
-	def __init__(self, input_labels, output_label):
+	def __init__(self, input_labels, output_label, probabilities=None):
 		self.input_labels = input_labels
 		self.output_label = output_label
+		self.probabilities = probabilities
 
 	def setup(self):
 		spec = self.spec[self.input_labels[0]].copy()
@@ -25,7 +26,7 @@ class PickRandomLabel(BatchFilter):
 
 	def process(self, batch, request):
 
-		random_pick = np.random.choice(self.input_labels)
+		random_pick = np.random.choice(self.input_labels, p=self.probabilities)
 		output_label = batch.arrays[random_pick].data.copy()
 
 		# logger.info(random_pick)
