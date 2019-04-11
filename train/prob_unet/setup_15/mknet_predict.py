@@ -97,7 +97,7 @@ def create_network(input_shape, setup_dir):
 	
 	# sample_z = tf.squeeze(prior.sample(), axis=[0], name="sample_z")
 	# sample_z = prior.sample()
-	# sample_z_batched = tf.reshape(sample_z, (1, 1, 6), name="sample_z") # for tf
+	# sample_z_batched = tf.reshape(z, (1, 1, 6), name="sample_z") 
 	# print("sample_z", sample_z_batched.shape)
 
 	print ("pred_logits: ", pred_logits.shape)
@@ -115,7 +115,7 @@ def create_network(input_shape, setup_dir):
 		'input_shape': input_shape,
 		'output_shape': output_shape,
 		'broadcast': broadcast_sample.name
-		# 'sample_z': sample_z_batched.name
+		'sample_z': z.name
 	}
 	with open(setup_dir + 'predict_config.json', 'w') as f:
 		json.dump(config, f)

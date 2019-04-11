@@ -159,13 +159,15 @@ def train(iterations):
 
 		pipeline += PickRandomLabel(
 				input_labels = [labels_key]+ merged_labels_keys,
-				output_label=picked_labels_key)
+				output_label=picked_labels_key,
+				probabilities=[0, 1, 0, 0])
 
 	else: 
 
 		pipeline += PickRandomLabel(
 				input_labels = [labels_key] + merged_labels_keys,
 				output_label=picked_labels_key)
+
 
 	pipeline += GrowBoundary(picked_labels_key, steps=1, only_xy=True)
 
@@ -201,9 +203,9 @@ def train(iterations):
 		pipeline += RenumberConnectedComponents(
 			labels=picked_labels_key)
 
-	pipeline += PreCache(
-			cache_size=8,
-			num_workers=4)
+	# pipeline += PreCache(
+	# 		cache_size=8,
+	# 		num_workers=4)
 
 	train_inputs = {
 		config['raw']: raw_key,

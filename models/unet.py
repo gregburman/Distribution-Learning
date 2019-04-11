@@ -40,35 +40,14 @@ class UNet():
 	def build(self):
 		print ("BUILD: ", self.name)
 
-		fmaps = self.fmaps_in
-		num_channels = self.base_channels
-		across = []
-		print ("ACTIVATION:  ", self.activation_type)
-		print ("fmaps_in : ", fmaps.shape)
-		for layer in range(self.num_layers):
-			for conv_pass in range(self.num_conv_passes):
-				fmaps = tf.layers.conv3d(
-					inputs = fmaps,
-					filters = num_channels,
-					kernel_size = self.down_kernel_size[layer],
-					padding = self.padding_type,
-					data_format = "channels_first",
-					activation = self.activation_type,
-					name = "%s_down_layer_%i_conv_pass_%i" % (self.name, layer, conv_pass))
-			across.append(fmaps)
+		with tf.variable_scope(self.name) as vs:
 
-			fmaps = helper.downsample(
-				fmaps_in = fmaps,
-				downsample_type = self.downsample_type,
-				downsample_factors = self.resample_factors[layer],
-				padding_type = self.padding_type,
-				voxel_size = self.voxel_size,
-				name = "%s_downsample_layer_%i" % (self.name, layer))
-
-			print ("layer ", (layer + 1), ": ", fmaps.shape)
-			num_channels *= self.channel_inc_factor
-
-			if layer == self.num_layers - 1:
+			fmaps = self.fmaps_in
+			num_channels = self.base_channels
+			across = []
+			print ("ACTIVATION:  ", self.activation_type)
+			print ("fmaps_in : ", fmaps.shape)
+			for layer in range(self.num_layers):
 				for conv_pass in range(self.num_conv_passes):
 					fmaps = tf.layers.conv3d(
 						inputs = fmaps,
@@ -77,9 +56,32 @@ class UNet():
 						padding = self.padding_type,
 						data_format = "channels_first",
 						activation = self.activation_type,
-						name = "%s_bottom_conv_pass_%i" % (self.name, conv_pass))
+						name = "%s_down_layer_%i_conv_pass_%i" % (self.name, layer, conv_pass))
+				across.append(fmaps)
 
-		print ("bottom   : ", fmaps.shape)
+				fmaps = helper.downsample(
+					fmaps_in = fmaps,
+					downsample_type = self.downsample_type,
+					downsample_factors = self.resample_factors[layer],
+					padding_type = self.padding_type,
+					voxel_size = self.voxel_size,
+					name = "%s_downsample_layer_%i" % (self.name, layer))
+
+				print ("layer ", (layer + 1), ": ", fmaps.shape)
+				num_channels *= self.channel_inc_factor
+
+				if layer == self.num_layers - 1:
+					for conv_pass in range(self.num_conv_passes):
+						fmaps = tf.layers.conv3d(
+							inputs = fmaps,
+							filters = num_channels,
+							kernel_size = self.down_kernel_size[layer],
+							padding = self.padding_type,
+							data_format = "channels_first",
+							activation = self.activation_type,
+							name = "%s_bottom_conv_pass_%i" % (self.name, conv_pass))
+
+			print ("bottom   : ", fmaps.shape)
 
 		for layer in reversed(range(self.num_layers)):
 			num_channels /= self.channel_inc_factor

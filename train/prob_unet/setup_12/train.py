@@ -236,7 +236,7 @@ def train(iterations):
 			},
 			summary=train_summary,
 			log_dir='log/prob_unet/' + setup_name,
-			save_every=2000)
+			save_every=1)
 
 	pipeline += IntensityScaleShift(
 			array=raw_key,

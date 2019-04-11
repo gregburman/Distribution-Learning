@@ -41,40 +41,20 @@ class Encoder():
 
 	def build(self):
 		print ("BUILD:", self.name)
+		
+		with tf.variable_scope(self.name) as vs:
 
-		channel_axis = 1
-		spacial_axes = [2,3,4]
-		fmaps = self.fmaps_in
-		num_channels = self.base_channels
+			channel_axis = 1
+			spacial_axes = [2,3,4]
+			fmaps = self.fmaps_in
+			num_channels = self.base_channels
 
-		if self.affmaps_in is not None:
-			self.affmaps_in = tf.cast(self.affmaps_in, tf.float32)
-			fmaps = tf.concat([fmaps, self.affmaps_in], axis=channel_axis)
+			if self.affmaps_in is not None:
+				self.affmaps_in = tf.cast(self.affmaps_in, tf.float32)
+				fmaps = tf.concat([fmaps, self.affmaps_in], axis=channel_axis)
 
-		print ("fmaps_in : ", fmaps.shape)
-		for layer in range(self.num_layers):
-			for conv_pass in range(self.num_conv_passes):
-				fmaps = tf.layers.conv3d(
-					inputs = fmaps,
-					filters = num_channels,
-					kernel_size = self.down_kernel_size[layer],
-					padding = self.padding_type,
-					data_format = "channels_first",
-					activation = self.activation_type,
-					name = "%s_layer_%i_conv_pass_%i" % (self.name, layer, conv_pass))
-
-			fmaps = helper.downsample(
-				fmaps_in = fmaps,
-				downsample_type = self.downsample_type,
-				downsample_factors = self.downsample_factors[layer],
-				padding_type = self.padding_type,
-				voxel_size = self.voxel_size,
-				name = "%s_downsample_layer_%i" % (self.name, layer))
-
-			print ("layer ", (layer + 1), ": ", fmaps.shape)
-			num_channels *= self.channel_inc_factor
-
-			if layer == self.num_layers - 1:
+			print ("fmaps_in : ", fmaps.shape)
+			for layer in range(self.num_layers):
 				for conv_pass in range(self.num_conv_passes):
 					fmaps = tf.layers.conv3d(
 						inputs = fmaps,
@@ -83,33 +63,55 @@ class Encoder():
 						padding = self.padding_type,
 						data_format = "channels_first",
 						activation = self.activation_type,
-						name = "%s_bottom_conv_pass_%i" % (self.name, conv_pass))
+						name = "%s_layer_%i_conv_pass_%i" % (self.name, layer, conv_pass))
 
-		print ("bottom   : ", fmaps.shape)
+				fmaps = helper.downsample(
+					fmaps_in = fmaps,
+					downsample_type = self.downsample_type,
+					downsample_factors = self.downsample_factors[layer],
+					padding_type = self.padding_type,
+					voxel_size = self.voxel_size,
+					name = "%s_downsample_layer_%i" % (self.name, layer))
 
-		encoding = tf.reduce_mean(fmaps, axis=spacial_axes, keep_dims=True)
+				print ("layer ", (layer + 1), ": ", fmaps.shape)
+				num_channels *= self.channel_inc_factor
 
-		print ("encoding : ", encoding.shape)
+				if layer == self.num_layers - 1:
+					for conv_pass in range(self.num_conv_passes):
+						fmaps = tf.layers.conv3d(
+							inputs = fmaps,
+							filters = num_channels,
+							kernel_size = self.down_kernel_size[layer],
+							padding = self.padding_type,
+							data_format = "channels_first",
+							activation = self.activation_type,
+							name = "%s_bottom_conv_pass_%i" % (self.name, conv_pass))
 
-		mu_log_sigma = tf.layers.conv3d(
-			inputs = encoding,
-			filters = self.latent_dims * 2,
-			kernel_size = 1, 	
-			padding = self.padding_type,
-			data_format = "channels_first",
-			activation = self.activation_type,
-			name = "%s_1x1_conv" % (self.name))
+			print ("bottom   : ", fmaps.shape)
 
-		mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes, name=self.name)
-		self.fmaps = mu_log_sigma # is this "really" the feature maps?
-		mean = mu_log_sigma[:, :self.latent_dims]
-		log_sigma = mu_log_sigma[:, self.latent_dims:]
+			encoding = tf.reduce_mean(fmaps, axis=spacial_axes, keep_dims=True)
 
-		print ("mu_log_sigma: ", mu_log_sigma.shape)
+			print ("encoding : ", encoding.shape)
 
-		self.distrib = tf.contrib.distributions.MultivariateNormalDiag(loc=mean, scale_diag=tf.exp(log_sigma), name=self.name)
-		print ("latent_z   : ", self.distrib.event_shape)
-		# self.fmaps = f_out
+			mu_log_sigma = tf.layers.conv3d(
+				inputs = encoding,
+				filters = self.latent_dims * 2,
+				kernel_size = 1, 	
+				padding = self.padding_type,
+				data_format = "channels_first",
+				activation = self.activation_type,
+				name = "%s_1x1_conv" % (self.name))
+
+			mu_log_sigma = tf.squeeze(mu_log_sigma, axis=spacial_axes, name=self.name)
+			self.fmaps = mu_log_sigma # is this "really" the feature maps?
+			mean = mu_log_sigma[:, :self.latent_dims]
+			log_sigma = mu_log_sigma[:, self.latent_dims:]
+
+			print ("mu_log_sigma: ", mu_log_sigma.shape)
+
+			self.distrib = tf.contrib.distributions.MultivariateNormalDiag(loc=mean, scale_diag=tf.exp(log_sigma), name=self.name)
+			print ("latent_z   : ", self.distrib.event_shape)
+			# self.fmaps = f_out
 
 	def get_fmaps(self):
 		return self.fmaps

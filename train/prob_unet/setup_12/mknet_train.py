@@ -60,6 +60,10 @@ def create_network(input_shape, setup_dir):
 	prior.build()
 	print ("")
 
+	# z = prior.sample()
+	# z0 = tf.identity(z)
+	# z1 = tf.identity(z)
+
 	posterior = Encoder(
 		fmaps_in = raw_batched,
 		affmaps_in = gt_affs_in_batched,

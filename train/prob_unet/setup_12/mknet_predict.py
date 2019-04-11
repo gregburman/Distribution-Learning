@@ -38,7 +38,7 @@ def create_network(input_shape, setup_dir):
 		activation_type = tf.nn.relu,
 		downsample_type = "max_pool",
 		upsample_type = "conv_transpose",
-		voxel_size = (1, 1, 1))
+		voxel_size =  (1, 1, 1))
 	unet.build()
 	print("")
 
@@ -60,8 +60,14 @@ def create_network(input_shape, setup_dir):
 	prior.build()
 	print ("")
 
-
-	z = prior.sample()*100
+	with tf.variable_scope("foo") as scope:
+		z = prior.sample()*100
+		z0arg = tf.identity(z)
+		z0_batched = tf.reshape(z0arg, (1, 1, 6), name="z0arg") # for tf
+		z1arg = tf.identity(z0arg)
+		z1_batched = tf.reshape(z1arg, (1, 1, 6), name="z1arg") # for tf
+		# z2arg = tf.identity(z1arg)
+		# z2_batched = tf.reshape(z2arg, (1, 1, 6), name="z2arg") # for tf
 
 	f_comb = FComb(
 		fmaps_in = unet.get_fmaps(),
@@ -74,6 +80,7 @@ def create_network(input_shape, setup_dir):
 		voxel_size = (1, 1, 1))
 	f_comb.build()
 	print ("")
+
 
 	pred_logits = tf.layers.conv3d(
 		inputs=f_comb.get_fmaps(),
@@ -97,7 +104,7 @@ def create_network(input_shape, setup_dir):
 	
 	# sample_z = tf.squeeze(prior.sample(), axis=[0], name="sample_z")
 	# sample_z = prior.sample()
-	# sample_z_batched = tf.reshape(sample_z, (1, 1, 6), name="sample_z") # for tf
+	sample_z_batched = tf.reshape(z, (1, 1, 6), name="sample_z") # for tf
 	# print("sample_z", sample_z_batched.shape)
 
 	print ("pred_logits: ", pred_logits.shape)
@@ -114,8 +121,11 @@ def create_network(input_shape, setup_dir):
 		'pred_affs': pred_affs.name,
 		'input_shape': input_shape,
 		'output_shape': output_shape,
-		'broadcast': broadcast_sample.name
-		# 'sample_z': sample_z_batched.name
+		'broadcast': broadcast_sample.name,
+		'sample_z': sample_z_batched.name,
+		'z0': z0_batched.name,
+		'z1': z1_batched.name,
+		# 'z2': z2_batched.name
 	}
 	with open(setup_dir + 'predict_config.json', 'w') as f:
 		json.dump(config, f)

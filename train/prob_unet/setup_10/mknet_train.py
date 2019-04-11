@@ -80,7 +80,7 @@ def create_network(input_shape, setup_dir):
 
 	f_comb = FComb(
 		fmaps_in = unet.get_fmaps(),
-		sample_in = posterior.sample(),
+		sample_in = z,
 		num_1x1_convs = 3,
 		num_channels = 12,
 		padding_type = 'valid',

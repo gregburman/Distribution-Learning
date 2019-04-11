@@ -36,7 +36,7 @@ def predict(checkpoint, iterations):
 	voxel_size = Coordinate((1, 1, 1))
 	input_shape = Coordinate(config['input_shape']) * voxel_size
 	output_shape = Coordinate(config['output_shape']) * voxel_size
-	# sample_shape = Coordinate((1, 1, 6)) * voxel_size
+	sample_shape = Coordinate((1, 1, 6)) * voxel_size
 
 	print ("input_size: ", input_shape)
 	print ("output_size: ", output_shape)
@@ -47,7 +47,7 @@ def predict(checkpoint, iterations):
 	request.add(raw_key, input_shape)
 	request.add(pred_affinities_key, output_shape)
 	request.add(broadcast_key, output_shape)
-	# request.add(sample_z_key, sample_shape)
+	request.add(sample_z_key, sample_shape)
 
 	pipeline = (
 		Hdf5Source(
@@ -69,7 +69,7 @@ def predict(checkpoint, iterations):
 			outputs={
 				config['pred_affs']: pred_affinities_key,
 				config['broadcast']: broadcast_key
-				# config['sample_z']: sample_z_key
+				config['sample_z']: sample_z_key
 			},
 			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
@@ -84,7 +84,7 @@ def predict(checkpoint, iterations):
 				raw_key: 'volumes/raw',
 				pred_affinities_key: 'volumes/pred_affs',
 				broadcast_key: 'volumes/broadcast',
-				# sample_z_key: 'volumes/sample_z'
+				sample_z_key: 'volumes/sample_z'
 			},
 			output_filename='prob_unet/' + setup_name + '/prediction_{id}.hdf',
 			every=1,
@@ -93,7 +93,7 @@ def predict(checkpoint, iterations):
 				raw_key: np.float32,
 				pred_affinities_key: np.float32,
 				broadcast_key: np.float32
-				# sample_z_key: np.float32
+				sample_z_key: np.float32
 			})
 		# PrintProfilingStats(every=20)
 	)
