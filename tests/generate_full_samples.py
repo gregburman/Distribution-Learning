@@ -117,7 +117,7 @@ def generate_full_samples(num_batches):
 				joined_affinities = joined_affs_neg_key,
 				joined_affinities_opp = joined_affs_pos_key,
 				merged_labels = merged_labels_key[i],
-				cropped_roi = None,
+				cropped_roi = output_shape,
 				every = 1) 
 
 		pipeline += AddAffinities(
@@ -143,7 +143,7 @@ def generate_full_samples(num_batches):
 
 	pipeline += Snapshot(
 		dataset_names=dataset_names,
-		output_filename='gt_1_merge_3/batch_{id}.hdf',
+		output_filename='gt_1_merge_3_cropped/batch_{id}.hdf',
 		every=1,
 		dataset_dtypes=dataset_dtypes)
 
@@ -154,6 +154,16 @@ def generate_full_samples(num_batches):
 	with build(pipeline) as p:
 		for i in range(num_batches):
 			req = p.request_batch(request)
+<<<<<<< HEAD
+			# print ("labels shape: ", req[labels_key].shape)
+			label_hash = np.sum(req[labels_key].data)
+			print ("label_hash:", label_hash)
+			if label_hash in hashes:
+				print ("DUPLICATE")
+				# break
+			else:
+				hashes.append(label_hash)
+=======
 			# print ("labels shape: ", req[labels_key].data.shape)
 			label_hash = np.sum(req[labels_key].data)
 			print ("\nDATA POINT:", i, ", label_hash:", label_hash)
@@ -163,6 +173,7 @@ def generate_full_samples(num_batches):
 			# 	# break
 			# else:
 			# 	hashes.append(label_hash)
+>>>>>>> 325068afbf4d36c577dc47dd8ec5840c493b1e2c
 
 if __name__ == "__main__":
 	print("Generating data...")
