@@ -29,7 +29,7 @@ with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
 beta = 1e-10
-phase_switch = 0
+phase_switch = 2000
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
@@ -69,7 +69,7 @@ def train(iterations):
 		merged_labels_keys.append(ArrayKey('MERGED_LABELS_%i'%(i+1)))
 
 
-	gt_affs_key = ArrayKey('GT_AFFINITIES')
+	gt_affs_out_key = ArrayKey('GT_AFFINITIES')
 	gt_affs_in_key = ArrayKey('GT_AFFINITIES_IN')
 	gt_affs_mask_key = ArrayKey('GT_AFFINITIES_MASK')
 	gt_affs_scale_key = ArrayKey('GT_AFFINITIES_SCALE')
@@ -99,12 +99,13 @@ def train(iterations):
 		request.add(merged_labels_keys[i], input_shape)
 	request.add(picked_labels_key, output_shape)		
 
-	request.add(gt_affs_key, output_shape)
+	request.add(gt_affs_out_key, output_shape)
 	request.add(gt_affs_in_key, input_shape)
 	request.add(gt_affs_mask_key, output_shape)
 	request.add(gt_affs_scale_key, output_shape)
 
 	request.add(pred_affs_key, output_shape)
+	request.add(pred_affs_gradient_key, output_shape)
 
 	# offset = Coordinate((input_shape[i]-output_shape[i])/2 for i in range(len(input_shape)))
 	# crop_roi = Roi(offset, output_shape)
@@ -157,7 +158,7 @@ def train(iterations):
 	if phase == "euclid":
 
 		pipeline += PickRandomLabel(
-				input_labels = [labels_key],
+				input_labels = [labels_key]+ merged_labels_keys,
 				output_label=picked_labels_key)
 
 	else: 
@@ -166,7 +167,7 @@ def train(iterations):
 				input_labels = [labels_key] + merged_labels_keys,
 				output_label=picked_labels_key)
 
-	# pipeline += GrowBoundary(merged_labels_key, steps=1, only_xy=True)
+	pipeline += GrowBoundary(picked_labels_key, steps=1, only_xy=True)
 
 	pipeline += AddAffinities(
 			affinity_neighborhood=neighborhood,
@@ -176,12 +177,12 @@ def train(iterations):
 	pipeline += AddAffinities(
 			affinity_neighborhood=neighborhood,
 			labels=picked_labels_key,
-			affinities=gt_affs_key,
+			affinities=gt_affs_out_key,
 			affinities_mask=gt_affs_mask_key)
 
 	# if phase == 'euclid':
 	pipeline += BalanceLabels(
-			labels=gt_affs_key,
+			labels=gt_affs_out_key,
 			scales=gt_affs_scale_key)
 
 	pipeline += DefectAugment(
@@ -207,7 +208,7 @@ def train(iterations):
 	train_inputs = {
 		config['raw']: raw_key,
 		config['gt_affs_in']: gt_affs_in_key,
-		config['gt_affs_out']: gt_affs_key,
+		config['gt_affs_out']: gt_affs_out_key,
 		config['pred_affs_loss_weights']: gt_affs_scale_key
 	}
 
@@ -250,11 +251,13 @@ def train(iterations):
 				raw_affs_key: 'volumes/raw_affs',
 				raw_key: 'volumes/raw',
 				pred_affs_key: 'volumes/pred_affs',
-				gt_affs_key: 'volumes/gt_affs'
+				gt_affs_out_key: 'volumes/gt_affs_out',
+				gt_affs_in_key: 'volumes/gt_affs_in'
 			},
 			output_filename='prob_unet/' + setup_name + '/batch_{iteration}.hdf',
-			every=4000,
+			every=1,
 			dataset_dtypes={
+				labels_key: np.uint64,
 				picked_labels_key: np.uint64,
 				raw_key: np.float32
 			})
