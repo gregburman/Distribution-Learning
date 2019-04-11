@@ -24,7 +24,7 @@ def generate_data(num_batches):
 	gt_affs_mask = ArrayKey('GT_AFFINITIES_MASK')
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate((528,528,528)) * voxel_size
+	input_size = Coordinate((132,132,132)) * voxel_size
 	# output_size = Coordinate((44,44,44)) * voxel_size
 
 	print ("input_size: ", input_size)
@@ -32,8 +32,7 @@ def generate_data(num_batches):
 
 	request = BatchRequest()
 	request.add(labels_key, input_size)
-	# request.add(affinities_key, input_size)
-	# request.add(gt_affs_mask, input_size)
+	request.add(affinities_key, input_size)
 	# request.add(joined_affinities_key, input_size)
 	# request.add(raw_key, input_size)
 	# request.add(output_affinities_key, output_size)
