@@ -47,33 +47,21 @@ class MergeLabels(BatchFilter):
 				random_label = np.random.choice(available_labels)
 				mask_edge = np.where((fully_joined == False) & (labels == random_label), random_label, 0)
 			else:
-				# print("CROPPING")
 				labels_cropped = self.__crop_center(labels, self.cropped_roi)
 				fully_joined_cropped = self.__crop_center(fully_joined, self.cropped_roi)
 				indices = np.indices(labels_cropped.shape)
 				available_labels = np.unique(labels_cropped)
-
 				random_label = np.random.choice(available_labels)
 				mask_edge = np.where((fully_joined_cropped == False) & (labels_cropped == random_label), random_label, 0)
 
 			mask_indices = indices[:, mask_edge == random_label]
-
-			# print("available_labels: ", available_labels)
-			# print("random_label: ", random_label)
-			# print("mask_edge: ", mask_edge.shape)
-			# print("mask_indices: ", np.size(mask_indices[0]))
-
-			try:
+			if mask_indices.shape[1] > 1:
 				random_point = np.random.randint(1, mask_indices.shape[1])
-			except:
-				indices = np.indices(labels.shape)
-				available_labels = np.unique(labels)
-				random_label = np.random.choice(available_labels)
-				mask_edge = np.where((fully_joined == False) & (labels == random_label), random_label, 0)
-				mask_indices = indices[:, mask_edge == random_label]
-				random_point = np.random.randint(1, mask_indices.shape[1])
-
-			r_index = mask_indices[:, random_point]
+				r_index = mask_indices[:, random_point]
+			else:
+				# logger.info("MASK INDICES:", mask_indices)
+				random_point = mask_indices
+				r_index = random_point
 
 			# print "random_label: ", random_label
 
