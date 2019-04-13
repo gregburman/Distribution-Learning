@@ -24,17 +24,19 @@ class FComb():
 		self.voxel_size = voxel_size
 		self.name = "f_comb"
 		self.out = None
+		self.sample_out = None
 
 		self.fmaps = None
 
 	def build(self):
-		print ("BUILD: ", self.name)
+		print ("BUILDaaaa: ", self.name)
 
 		with tf.variable_scope(self.name) as vs:
 
 			channel_axis = 1
 			spatial_axis = [2,3,4]
 			sample = self.sample_in
+			self.sample_out = tf.ones([1,1,6])
 			print ("fmaps_in: ", self.fmaps_in.shape)
 			print("sample: ", sample.shape)
 			# broadcast
@@ -55,7 +57,8 @@ class FComb():
 			# broadcast_sample = tf.tile(sample, tf.constant(multiples))
 
 			# tf.constant([1], shape=multiples)
-			self.out = broadcast_sample
+			# self.out = broadcast_sample
+			self.out = tf.identity(broadcast_sample)
 			fmaps = tf.concat([self.fmaps_in, broadcast_sample], axis=channel_axis)
 
 			print ("broadcast_sample: ", broadcast_sample.shape)

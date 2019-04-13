@@ -15,7 +15,7 @@ import numpy as np
 
 def create_network(input_shape, setup_dir):
 
-	print ("MKNET: PROB-UNET SAMPLE")
+	print ("MKNET: PROB-UNET SAMPLE RUN")
 	print("")
 	tf.reset_default_graph()
 
@@ -42,31 +42,31 @@ def create_network(input_shape, setup_dir):
 	unet.build()
 	print("")
 
-	prior = Encoder(
-		fmaps_in = raw_batched,
-		affmaps_in = None,
-		num_layers = 3,
-		latent_dims = 6,
-		base_channels = 12,
-		channel_inc_factor = 3,
-		downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
-		padding_type = "valid",
-		num_conv_passes = 2,
-		down_kernel_size = [3, 3, 3],
-		activation_type = tf.nn.relu,
-		downsample_type = "max_pool",
-		voxel_size = (1, 1, 1),
-		name = "prior")
-	prior.build()
-	print ("")
+	with tf.variable_scope("prior") as vs:
+		prior = Encoder(
+			fmaps_in = raw_batched,
+			affmaps_in = None,
+			num_layers = 3,
+			latent_dims = 6,
+			base_channels = 12,
+			channel_inc_factor = 3,
+			downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
+			padding_type = "valid",
+			num_conv_passes = 2,
+			down_kernel_size = [3, 3, 3],
+			activation_type = tf.nn.relu,
+			downsample_type = "max_pool",
+			voxel_size = (1, 1, 1),
+			name = "prior")
+		prior.build()
+		print ("")
 
+		sample_z = prior.sample()
 
-	z = prior.sample()*100
 
 	f_comb = FComb(
 		fmaps_in = unet.get_fmaps(),
-		sample_in = z,
-		# sample_in = tf.reshape(tf.constant([5,5,5,-5,-5,-5], dtype=np.float32), (1,6)),
+		sample_in = sample_z,
 		num_1x1_convs = 3,
 		num_channels = 12,
 		padding_type = 'valid',
@@ -74,6 +74,8 @@ def create_network(input_shape, setup_dir):
 		voxel_size = (1, 1, 1))
 	f_comb.build()
 	print ("")
+
+	sample_out = f_comb.sample_out
 
 	pred_logits = tf.layers.conv3d(
 		inputs=f_comb.get_fmaps(),
@@ -86,6 +88,7 @@ def create_network(input_shape, setup_dir):
 	print ("")
 
 	broadcast_sample = f_comb.out
+	print("broadcast_sample: ", broadcast_sample)
 
 	pred_affs = tf.sigmoid(pred_logits)
 
@@ -97,8 +100,11 @@ def create_network(input_shape, setup_dir):
 	
 	# sample_z = tf.squeeze(prior.sample(), axis=[0], name="sample_z")
 	# sample_z = prior.sample()
-	# sample_z_batched = tf.reshape(z, (1, 1, 6), name="sample_z") 
+	sample_z_batched = tf.reshape(sample_z, (1, 1, 6), name="sample_z") 
 	# print("sample_z", sample_z_batched.shape)
+	print("sample_out_name: ", f_comb.get_fmaps().name)
+	sample_out_batched = tf.reshape(sample_out, (1, 1, 6)) 
+	print("sample_out: ", sample_out_batched.shape)
 
 	print ("pred_logits: ", pred_logits.shape)
 	print ("pred_affs: ", pred_affs.shape)
@@ -114,8 +120,10 @@ def create_network(input_shape, setup_dir):
 		'pred_affs': pred_affs.name,
 		'input_shape': input_shape,
 		'output_shape': output_shape,
-		'broadcast': broadcast_sample.name
-		'sample_z': z.name
+		'broadcast': broadcast_sample.name,
+		'sample_z': sample_z_batched.name,
+		'pred_logits': pred_logits.name,
+		'sample_out': sample_out_batched.name
 	}
 	with open(setup_dir + 'predict_config.json', 'w') as f:
 		json.dump(config, f)

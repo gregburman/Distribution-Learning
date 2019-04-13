@@ -39,7 +39,7 @@ def generate_data(num_batches):
 		ToyNeuronSegmentationGenerator(
 			array_key=labels_key,
 			n_objects=50,
-			points_per_skeleton=5,
+			points_per_skeleton=8,
 			smoothness=3,
 			noise_strength = 1,
 			interpolation="random") +
@@ -75,6 +75,8 @@ def generate_data(num_batches):
 		for i in range(num_batches):
 			print("\nDATA POINT: ", i)
 			req = p.request_batch(request)
+			gt_affs = req[gt_affs_key].data
+			print(gt_affs)
 
 if __name__ == "__main__":
 	print("Generating data...")

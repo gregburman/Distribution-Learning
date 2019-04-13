@@ -38,10 +38,10 @@ for i, ax in enumerate(axes[0]):
 		ax.imshow(raw[cropz, cropy, cropx], cmap="Greys_r")
 
 # PREDICTIONS
-file_1 = h5py.File('../snapshots/prob_unet/setup_12/prediction_00000000.hdf', 'r')
-file_2 = h5py.File('../snapshots/prob_unet/setup_12/prediction_00000001.hdf', 'r')
-file_3 = h5py.File('../snapshots/prob_unet/setup_12/prediction_00000002.hdf', 'r')
-file_4 = h5py.File('../snapshots/prob_unet/setup_12/prediction_00000003.hdf', 'r')
+file_1 = h5py.File('../snapshots/prob_unet/setup_15/prediction_00000000.hdf', 'r')
+file_2 = h5py.File('../snapshots/prob_unet/setup_15/prediction_00000001.hdf', 'r')
+file_3 = h5py.File('../snapshots/prob_unet/setup_15/prediction_00000002.hdf', 'r')
+file_4 = h5py.File('../snapshots/prob_unet/setup_15/prediction_00000003.hdf', 'r')
 volumes_1 = file_1['volumes']
 volumes_2 = file_2['volumes']
 volumes_3 = file_3['volumes']

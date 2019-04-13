@@ -20,7 +20,7 @@ from nodes import PickRandomLabel
 
 logging.basicConfig(level=logging.INFO)
 
-data_dir = "data/gt_1_merge_3"
+data_dir = "data/gt_1_merge_3_cropped"
 samples = ["batch_%08i"%i for i in range(2000)]
 
 setup_name = sys.argv[1]
@@ -77,11 +77,15 @@ def train(iterations):
 	pred_affs_key = ArrayKey('PRED_AFFS')
 	pred_affs_gradient_key = ArrayKey('PRED_AFFS_GRADIENT')
 
+	sample_z_key = ArrayKey("SAMPLE_Z")
+	broadcast_key = ArrayKey("BROADCAST")
+
 	voxel_size = Coordinate((1, 1, 1))
 	input_shape = Coordinate(config['input_shape']) * voxel_size
 	input_affs_shape = Coordinate([i + 1 for i in config['input_shape']]) * voxel_size
 	output_shape = Coordinate(config['output_shape']) * voxel_size
 	output_affs_shape = Coordinate([i + 1 for i in config['output_shape']]) * voxel_size
+	sample_shape = Coordinate((1, 1, 6)) * voxel_size
 
 	print ("input_shape: ", input_shape)
 	print ("input_affs_shape: ", input_affs_shape)
@@ -106,6 +110,9 @@ def train(iterations):
 
 	request.add(pred_affs_key, output_shape)
 	request.add(pred_affs_gradient_key, output_shape)
+
+	request.add(broadcast_key, output_shape)
+	request.add(sample_z_key, sample_shape)
 
 	# offset = Coordinate((input_shape[i]-output_shape[i])/2 for i in range(len(input_shape)))
 	# crop_roi = Roi(offset, output_shape)
@@ -160,13 +167,14 @@ def train(iterations):
 		pipeline += PickRandomLabel(
 				input_labels = [labels_key]+ merged_labels_keys,
 				output_label=picked_labels_key,
-				probabilities=[0, 1, 0, 0])
+				probabilities=[1, 0, 0, 0])
 
 	else: 
 
 		pipeline += PickRandomLabel(
 				input_labels = [labels_key] + merged_labels_keys,
-				output_label=picked_labels_key)
+				output_label=picked_labels_key,
+				probabilities=[0.5, 0.5, 0, 0])
 
 
 	pipeline += GrowBoundary(picked_labels_key, steps=1, only_xy=True)
@@ -203,9 +211,9 @@ def train(iterations):
 		pipeline += RenumberConnectedComponents(
 			labels=picked_labels_key)
 
-	# pipeline += PreCache(
-	# 		cache_size=8,
-	# 		num_workers=4)
+	pipeline += PreCache(
+			cache_size=8,
+			num_workers=4)
 
 	train_inputs = {
 		config['raw']: raw_key,
@@ -232,7 +240,9 @@ def train(iterations):
 			loss=train_loss,
 			inputs=train_inputs,
 			outputs={
-				config['pred_affs']: pred_affs_key
+				config['pred_affs']: pred_affs_key,
+				config['broadcast']: broadcast_key,
+				config['sample_z']: sample_z_key
 			},
 			gradients={
 				config['pred_affs']: pred_affs_gradient_key
@@ -257,7 +267,7 @@ def train(iterations):
 				gt_affs_in_key: 'volumes/gt_affs_in'
 			},
 			output_filename='prob_unet/' + setup_name + '/batch_{iteration}.hdf',
-			every=1,
+			every=1000,
 			dataset_dtypes={
 				labels_key: np.uint64,
 				picked_labels_key: np.uint64,
@@ -270,7 +280,23 @@ def train(iterations):
 	with build(pipeline) as p:
 		for i in range(iterations - trained_until):
 			req = p.request_batch(request)
-			# print(req[picked_labels_key])
+			sample_z = req[sample_z_key].data
+			broadcast_sample = req[broadcast_key].data
+
+			print(sample_z)
+			print("Z - 0")
+			print(broadcast_sample[0, 0, :, :, :])
+			print("Z - 1")
+			print(broadcast_sample[0, 1, :, :, :])
+			print("Z - 2")
+			print(broadcast_sample[0, 2, :, :, :])
+			print("Z - 3")
+			print(broadcast_sample[0, 3, :, :, :])
+			print("Z - 4")
+			print(broadcast_sample[0, 4, :, :, :])
+			print("Z - 5")
+			print(broadcast_sample[0, 5, :, :, :])
+
 	print("Training finished")
 
 def add_malis_loss(graph):

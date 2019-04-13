@@ -42,51 +42,60 @@ def create_network(input_shape, setup_dir):
 	unet.build()
 	print("")
 
-	prior = Encoder(
-		fmaps_in = raw_batched,
-		affmaps_in = None,
-		num_layers = 3,
-		latent_dims = 6,
-		base_channels = 12,
-		channel_inc_factor = 3,
-		downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
-		padding_type = "valid",
-		num_conv_passes = 2,
-		down_kernel_size = [3, 3, 3],
-		activation_type = tf.nn.relu,
-		downsample_type = "max_pool",
-		voxel_size = (1, 1, 1),
-		name = "prior")
-	prior.build()
-	print ("")
+	with tf.variable_scope("prior") as vs:
 
-	posterior = Encoder(
-		fmaps_in = raw_batched,
-		affmaps_in = gt_affs_in_batched,
-		num_layers = 3,
-		latent_dims = 6,
-		base_channels = 12,
-		channel_inc_factor = 3,
-		downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
-		padding_type = "valid",
-		num_conv_passes = 2,
-		down_kernel_size = [3, 3, 3],
-		activation_type = tf.nn.relu,
-		downsample_type = "max_pool",
-		voxel_size = (1, 1, 1),
-		name = "posterior")
-	posterior.build()
-	print ("")
+		prior = Encoder(
+			fmaps_in = raw_batched,
+			affmaps_in = None,
+			num_layers = 3,
+			latent_dims = 6,
+			base_channels = 12,
+			channel_inc_factor = 3,
+			downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
+			padding_type = "valid",
+			num_conv_passes = 2,
+			down_kernel_size = [3, 3, 3],
+			activation_type = tf.nn.relu,
+			downsample_type = "max_pool",
+			voxel_size = (1, 1, 1),
+			name = "prior")
+		prior.build()
+		print ("")
+
+	with tf.variable_scope("posterior") as vs:
+
+		posterior = Encoder(
+			fmaps_in = raw_batched,
+			affmaps_in = gt_affs_in_batched,
+			num_layers = 3,
+			latent_dims = 6,
+			base_channels = 12,
+			channel_inc_factor = 3,
+			downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
+			padding_type = "valid",
+			num_conv_passes = 2,
+			down_kernel_size = [3, 3, 3],
+			activation_type = tf.nn.relu,
+			downsample_type = "max_pool",
+			voxel_size = (1, 1, 1),
+			name = "posterior")
+		posterior.build()
+		print ("")
+
+		sample_z = posterior.sample()
+	sample_z_batched = tf.reshape(sample_z, (1, 1, 6), name="sample_z_batched")
 
 	f_comb = FComb(
 		fmaps_in = unet.get_fmaps(),
-		sample_in = posterior.sample(),
+		sample_in = sample_z,
 		num_1x1_convs = 3,
 		num_channels = 12,
 		padding_type = 'valid',
 		activation_type = tf.nn.relu,
 		voxel_size = (1, 1, 1))
 	f_comb.build()
+
+	broadcast_sample = f_comb.out
 
 	pred_logits = tf.layers.conv3d(
 		inputs=f_comb.get_fmaps(),
@@ -155,6 +164,8 @@ def create_network(input_shape, setup_dir):
 		'posterior': posterior.get_fmaps().name,
 		'latent_dims': 6,
 		'summary': summary.name,
+		'broadcast': broadcast_sample.name,
+		'sample_z': sample_z_batched.name
 	}
 	with open(setup_dir + 'train_config.json', 'w') as f:
 		json.dump(config, f)
