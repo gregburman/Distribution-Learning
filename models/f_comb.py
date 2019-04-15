@@ -31,51 +31,55 @@ class FComb():
 	def build(self):
 		print ("BUILDaaaa: ", self.name)
 
-		with tf.variable_scope(self.name) as vs:
+		# with tf.variable_scope(self.name) as vs:
 
-			channel_axis = 1
-			spatial_axis = [2,3,4]
-			sample = self.sample_in
-			self.sample_out = tf.ones([1,1,6])
-			print ("fmaps_in: ", self.fmaps_in.shape)
-			print("sample: ", sample.shape)
-			# broadcast
-			shape = self.fmaps_in.get_shape()
-			spatial_shape = [shape[axis].value for axis in spatial_axis]
-			print("spatial_shape:", spatial_shape)
-			multiples = [1] + spatial_shape
-			multiples.insert(channel_axis, 1)
-			print("multiples", multiples)
+		channel_axis = 1
+		spatial_axis = [2,3,4]
+		sample = self.sample_in
+		self.sample_out = tf.ones([1,1,6])
+		print("ones: ", self.sample_out.name)
+		print ("fmaps_in: ", self.fmaps_in.shape)
+		print("sample: ", sample.shape)
+		# broadcast
+		shape = self.fmaps_in.get_shape()
+		spatial_shape = [shape[axis].value for axis in spatial_axis]
+		print("spatial_shape:", spatial_shape)
+		multiples = [1] + spatial_shape
+		multiples.insert(channel_axis, 1)
+		print("multiples", multiples)
 
-			if len(sample.get_shape()) == 2:
-				sample = tf.expand_dims(sample, axis=2)
-				sample = tf.expand_dims(sample, axis=2)
-				sample = tf.expand_dims(sample, axis=2)
+		if len(sample.get_shape()) == 2:
+			sample = tf.expand_dims(sample, axis=2)
+			sample = tf.expand_dims(sample, axis=2)
+			sample = tf.expand_dims(sample, axis=2)
 
-			print ("sample: ", sample.shape)
-			broadcast_sample = tf.tile(sample, multiples)
-			# broadcast_sample = tf.tile(sample, tf.constant(multiples))
+		print ("sample: ", sample.shape)
+		broadcast_sample = tf.tile(sample, multiples)
+		# broadcast_sample = tf.tile(sample, tf.constant(multiples))
 
-			# tf.constant([1], shape=multiples)
-			# self.out = broadcast_sample
-			self.out = tf.identity(broadcast_sample)
-			fmaps = tf.concat([self.fmaps_in, broadcast_sample], axis=channel_axis)
+		# tf.constant([1], shape=multiples)
+		# self.out = broadcast_sample
+		self.out = tf.identity(broadcast_sample)
+		fmaps = tf.concat([self.fmaps_in, broadcast_sample], axis=channel_axis)
 
-			print ("broadcast_sample: ", broadcast_sample.shape)
-			print ("fmaps concat: ", fmaps.shape)
+		print ("broadcast_sample: ", broadcast_sample.shape)
+		print ("fmaps concat: ", fmaps.shape)
 
-			for conv_pass in range(self.num_1x1_convs):
-				fmaps = tf.layers.conv3d(
-					inputs = fmaps,
-					filters = self.num_channels,
-					kernel_size = 1,
-					padding = self.padding_type,
-					data_format = "channels_first",
-					activation = self.activation_type,
-					name = "%s_conv_pass_%i"%(self.name, conv_pass))
+		for conv_pass in range(self.num_1x1_convs):
+			fmaps = tf.layers.conv3d(
+				inputs = fmaps,
+				filters = self.num_channels,
+				kernel_size = 1,
+				padding = self.padding_type,
+				data_format = "channels_first",
+				activation = self.activation_type,
+				name = "%s_conv_pass_%i"%(self.name, conv_pass))
 
-			print ("output: ", fmaps.shape)
-			self.fmaps = fmaps
+		print ("output: ", fmaps.shape)
+		self.fmaps = fmaps
+		return tf.ones([1,1,6])
+
+
 
 	def get_fmaps(self):
 		return self.fmaps

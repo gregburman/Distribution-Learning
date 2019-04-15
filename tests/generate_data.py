@@ -3,17 +3,25 @@ import sys
 sys.path.append('../')
 
 from gunpowder import *
+from gunpowder.tensorflow import *
 from nodes import ToyNeuronSegmentationGenerator
 from nodes import AddJoinedAffinities
 from nodes import AddRealism
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
+import os
+import json
 
 import time
 
 # logging.getLogger('gp.AddAffinities').setLevel(logging.DEBUG)
 logging.basicConfig(level=logging.INFO)
+
+with open(os.path.join('tests/train_net.json'), 'r') as f:
+	config = json.load(f)
+
+neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
 def generate_data(num_batches):
 
@@ -22,19 +30,26 @@ def generate_data(num_batches):
 	joined_affinities_key= ArrayKey('JOINED_AFFINITIES')
 	raw_key = ArrayKey('RAW')
 	gt_affs_mask = ArrayKey('GT_AFFINITIES_MASK')
+	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
+	debug_key = ArrayKey("DEBUG")
+	gt_affs_in_key = ArrayKey('GT_AFFINITIES_IN')
 
 	voxel_size = Coordinate((1, 1, 1))
 	input_size = Coordinate((132,132,132)) * voxel_size
+	output_shape = Coordinate((44,44,44)) * voxel_size
+	debug_shape = Coordinate((1, 1, 1)) * voxel_size
 	# output_size = Coordinate((44,44,44)) * voxel_size
 
 	print ("input_size: ", input_size)
 	# print ("output_size: ", output_size)
 
 	request = BatchRequest()
-	request.add(labels_key, input_size)
-	request.add(affinities_key, input_size)
-	# request.add(joined_affinities_key, input_size)
-	# request.add(raw_key, input_size)
+	request.add(raw_key, input_size)
+	request.add(pred_affinities_key, output_shape)
+	request.add(debug_key, debug_shape)
+	request.add(joined_affinities_key, input_size)
+	request.add(raw_key, input_size)
+	request.add(gt_affs_in_key, input_size)
 	# request.add(output_affinities_key, output_size)
 
 	# offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
@@ -44,76 +59,54 @@ def generate_data(num_batches):
 	# print ("input_affinities_key: ", input_affinities_key)
 
 	# seeds = [i for in range(10)]
-	np.random.seed(0)
 
-	pipeline = (
-		ToyNeuronSegmentationGenerator(
-			array_key=labels_key,
-			n_objects=3200,
-			points_per_skeleton=5,
-			smoothness=3,
-			noise_strength = 1,
-			interpolation="random") +
-		# AddAffinities(
-		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-		# 	labels=labels_key,
-		# 	affinities=affinities_key,
-		# 	affinities_mask=gt_affs_mask) +
-		# GrowBoundary(labels_key, steps=1, only_xy=True) +
-		# AddAffinities(
-		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-		# 	labels=labels_key,
-		# 	affinities=input_affinities_key) +
-		# AddAffinities(
-		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-		# 	labels=labels_key,
-		# 	affinities=output_affinities_key) +
-		# Crop(
-		# 	key=labels_key,
-		# 	roi=crop_roi) +
-		# AddJoinedAffinities(
-		# 	input_affinities=affinities_key,
-		# 	joined_affinities=joined_affinities_key) +
-		#  AddRealism(
-		#  	joined_affinities=joined_affinities_key,
-		#  	raw=raw_key,
-		#  	sp=0.25,
-		#  	sigma=1,
-		#  	contrast=0.7) +
-		 PreCache(
-			cache_size=4,
-			num_workers=2)
-		 Snapshot(
-		 	dataset_names={
-				labels_key: 'volumes/labels',
-				affinities_key: 'volumes/affinities',
-				joined_affinities_key: 'volumes/joined_affs',
-				# raw_key: 'volumes/raw',
-				# gt_affs_mask: 'volumes/affs_mask'
-		 	},
-		 	output_filename="edges.hdf",
-		 	every=1,
-		 	dataset_dtypes={
-		 		labels_key: np.uint16,
-		 		raw_key: np.float32,
-		 		gt_affs_1:
-		 		gt_affs_2:
-			})
-		 PrintProfilingStats(every=20)
-		)
+	pipeline = ()
+
+	pipeline += ToyNeuronSegmentationGenerator(
+		array_key=labels_key,
+		n_objects=50,
+		points_per_skeleton=8,
+		smoothness=3,
+		noise_strength = 1,
+		interpolation="linear") 
+
+	pipeline +=  AddAffinities(
+		affinity_neighborhood=neighborhood,
+		labels=labels_key,
+		affinities=gt_affs_in_key)
+
+	pipeline +=  AddJoinedAffinities(
+		input_affinities=gt_affs_in_key,
+		joined_affinities=joined_affinities_key)
+
+	pipeline +=  AddRealism(
+		joined_affinities = joined_affinities_key,
+		raw = raw_key,
+		sp=0.25,
+		sigma=1,
+		contrast=0.7)
+
+	predict = Predict(
+		checkpoint = os.path.join('tests/train_net_checkpoint_1'),
+		inputs={
+			config['raw']: raw_key
+		},
+		outputs={
+			config['pred_affs']: pred_affinities_key,
+			config['debug']: debug_key,
+		},
+		# graph=os.path.join(setup_dir, 'predict_net.meta')
+	)
+	pipeline += predict
 
 	hashes = []
 	with build(pipeline) as p:
 		for i in range(num_batches):
 			print("\nDATA POINT: ", i)
 			req = p.request_batch(request)
-			label_hash = np.sum(req[labels_key].data)
-			print (", label_hash:", label_hash)
-			if label_hash in hashes:
-				print ("DUPLICATE")
-				# break
-			else:
-				hashes.append(label_hash)
+			with predict.session.as_default():
+				d = predict.graph.get_tensor_by_name('debug:0')
+				print(d.eval())
 
 			# print ("labels: ", req[labels_key].data.dtype)
 			# print ("affinities: ", req[affinities_key].data.dtype)

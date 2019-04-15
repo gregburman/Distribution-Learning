@@ -8,7 +8,6 @@ import json
 import logging
 import numpy as np
 import os
-import malis
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,13 +31,15 @@ def predict(checkpoint, iterations):
 	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
 	sample_z_key = ArrayKey("SAMPLE_Z")
 	broadcast_key = ArrayKey("BROADCAST")
-	pred_logits_key = ArrayKey("PRED_LOGITS")
+	# pred_logits_key = ArrayKey("PRED_LOGITS")
 	sample_out_key = ArrayKey("SAMPLE_OUT")
+	debug_key = ArrayKey("DEBUG")
 
 	voxel_size = Coordinate((1, 1, 1))
 	input_shape = Coordinate(config['input_shape']) * voxel_size
 	output_shape = Coordinate(config['output_shape']) * voxel_size
 	sample_shape = Coordinate((1, 1, 6)) * voxel_size
+	debug_shape = Coordinate((1, 1, 5)) * voxel_size
 
 	print ("input_size: ", input_shape)
 	print ("output_size: ", output_shape)
@@ -50,8 +51,9 @@ def predict(checkpoint, iterations):
 	request.add(pred_affinities_key, output_shape)
 	request.add(broadcast_key, output_shape)
 	request.add(sample_z_key, sample_shape)
-	request.add(pred_logits_key, output_shape)
+	# request.add(pred_logits_key, output_shape)
 	request.add(sample_out_key, sample_shape)
+	request.add(debug_key, debug_shape)
 
 	pipeline = (
 		Hdf5Source(
@@ -74,8 +76,9 @@ def predict(checkpoint, iterations):
 				config['pred_affs']: pred_affinities_key,
 				config['broadcast']: broadcast_key,
 				config['sample_z']: sample_z_key,
-				config['pred_logits']: pred_logits_key,
-				config['sample_out']: sample_out_key
+				# config['pred_logits']: pred_logits_key,
+				config['sample_out']: sample_out_key,
+				config['debug']: debug_key
 			},
 			graph=os.path.join(setup_dir, 'predict_net.meta')
 		) +
@@ -91,7 +94,7 @@ def predict(checkpoint, iterations):
 				pred_affinities_key: 'volumes/pred_affs',
 				broadcast_key: 'volumes/broadcast',
 				sample_z_key: 'volumes/sample_z',
-				pred_logits_key: 'volumes/pred_logits',
+				# pred_logits_key: 'volumes/pred_logits',
 				# sample_out_key: 'volumes/sample_out'
 			},
 			output_filename='prob_unet/' + setup_name + '/prediction_{id}.hdf',
@@ -102,7 +105,7 @@ def predict(checkpoint, iterations):
 				pred_affinities_key: np.float32,
 				broadcast_key: np.float32,
 				sample_z_key: np.float32,
-				pred_logits_key: np.float32
+				# pred_logits_key: np.float32
 			})
 		# PrintProfilingStats(every=20)
 	)
@@ -114,21 +117,23 @@ def predict(checkpoint, iterations):
 			sample_z = req[sample_z_key].data
 			broadcast_sample = req[broadcast_key].data
 			sample_out = req[sample_out_key].data
+			print("sample_out:", sample_out)
+			debug = req[debug_key].data
+			print("debug", debug)
 
 			print("sample_z: ", sample_z)
-			print("sample_out:",sample_out)
 			print("Z - 0")
-			print(broadcast_sample[0, 0, :, :, :])
+			print(np.unique(broadcast_sample[0, 0, :, :, :]))
 			print("Z - 1")
-			print(broadcast_sample[0, 1, :, :, :])
+			print(np.unique(broadcast_sample[0, 1, :, :, :]))
 			print("Z - 2")
-			print(broadcast_sample[0, 2, :, :, :])
+			print(np.unique(broadcast_sample[0, 2, :, :, :]))
 			print("Z - 3")
-			print(broadcast_sample[0, 3, :, :, :])
+			print(np.unique(broadcast_sample[0, 3, :, :, :]))
 			print("Z - 4")
-			print(broadcast_sample[0, 4, :, :, :])
+			print(np.unique(broadcast_sample[0, 4, :, :, :]))
 			print("Z - 5")
-			print(broadcast_sample[0, 5, :, :, :])
+			print(np.unique(broadcast_sample[0, 5, :, :, :]))
 	print("Prediction finished")
 
 if __name__ == "__main__":

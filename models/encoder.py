@@ -113,6 +113,8 @@ class Encoder():
 		print ("latent_z   : ", self.distrib.event_shape)
 		# self.fmaps = f_out
 
+		
+
 	def get_fmaps(self):
 		return self.fmaps
 

@@ -9,20 +9,20 @@ def downsample(
 	voxel_size,
 	name):
 
-	with tf.variable_scope(name) as vs:
+	# with tf.variable_scope(name) as vs:
 
-		if downsample_type == "max_pool":
-			fmaps_out = tf.layers.max_pooling3d(
-				inputs=fmaps_in,
-				pool_size=downsample_factors,
-				strides=downsample_factors,
-				padding=padding_type,
-				data_format='channels_first',
-				name=name)
-		else:
-			raise Exception('unsupported downsample type')
+	if downsample_type == "max_pool":
+		fmaps_out = tf.layers.max_pooling3d(
+			inputs=fmaps_in,
+			pool_size=downsample_factors,
+			strides=downsample_factors,
+			padding=padding_type,
+			data_format='channels_first',
+			name=name)
+	else:
+		raise Exception('unsupported downsample type')
 
-		return fmaps_out
+	return fmaps_out
 
 def upsample(
 	fmaps_in,
@@ -34,22 +34,22 @@ def upsample(
 	voxel_size,
 	name):
 
-	with tf.variable_scope(name) as vs:
+	# with tf.variable_scope(name) as vs:
 
-		if upsample_type == "conv_transpose":
-			fmaps_out = tf.layers.conv3d_transpose(
-				inputs = fmaps_in,
-				filters = num_channels,
-				kernel_size = upsample_factors,
-				strides = upsample_factors,
-				padding = padding_type,
-				data_format = 'channels_first',
-				activation = activation_type,
-				name = name)
-		else:
-			raise Exception('unsupported upsample type')
+	if upsample_type == "conv_transpose":
+		fmaps_out = tf.layers.conv3d_transpose(
+			inputs = fmaps_in,
+			filters = num_channels,
+			kernel_size = upsample_factors,
+			strides = upsample_factors,
+			padding = padding_type,
+			data_format = 'channels_first',
+			activation = activation_type,
+			name = name)
+	else:
+		raise Exception('unsupported upsample type')
 
-		return fmaps_out
+	return fmaps_out
 
 def crop(fmaps_in, shape):
 

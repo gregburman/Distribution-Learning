@@ -25,6 +25,7 @@ samples = ["batch_%08i"%i for i in range(2000)]
 
 setup_name = sys.argv[1]
 setup_dir = 'train/prob_unet/' + setup_name + '/'
+
 with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
@@ -79,6 +80,9 @@ def train(iterations):
 
 	sample_z_key = ArrayKey("SAMPLE_Z")
 	broadcast_key = ArrayKey("BROADCAST")
+	sample_out_key = ArrayKey("SAMPLE_OUT")
+	debug_key = ArrayKey("DEBUG")
+
 
 	voxel_size = Coordinate((1, 1, 1))
 	input_shape = Coordinate(config['input_shape']) * voxel_size
@@ -86,6 +90,7 @@ def train(iterations):
 	output_shape = Coordinate(config['output_shape']) * voxel_size
 	output_affs_shape = Coordinate([i + 1 for i in config['output_shape']]) * voxel_size
 	sample_shape = Coordinate((1, 1, 6)) * voxel_size
+	debug_shape = Coordinate((1, 1, 5)) * voxel_size
 
 	print ("input_shape: ", input_shape)
 	print ("input_affs_shape: ", input_affs_shape)
@@ -113,6 +118,8 @@ def train(iterations):
 
 	request.add(broadcast_key, output_shape)
 	request.add(sample_z_key, sample_shape)
+	request.add(sample_out_key, sample_shape)
+	request.add(debug_key, debug_shape)
 
 	# offset = Coordinate((input_shape[i]-output_shape[i])/2 for i in range(len(input_shape)))
 	# crop_roi = Roi(offset, output_shape)
@@ -242,14 +249,16 @@ def train(iterations):
 			outputs={
 				config['pred_affs']: pred_affs_key,
 				config['broadcast']: broadcast_key,
-				config['sample_z']: sample_z_key
+				config['sample_z']: sample_z_key,
+				config['sample_out']: sample_out_key,
+				config['debug']: debug_key
 			},
 			gradients={
 				config['pred_affs']: pred_affs_gradient_key
 			},
 			summary=train_summary,
 			log_dir='log/prob_unet/' + setup_name,
-			save_every=2000)
+			save_every=1)
 
 	pipeline += IntensityScaleShift(
 			array=raw_key,
@@ -282,20 +291,25 @@ def train(iterations):
 			req = p.request_batch(request)
 			sample_z = req[sample_z_key].data
 			broadcast_sample = req[broadcast_key].data
+			sample_out = req[sample_out_key].data
+			print("sample_out:", sample_out)
+			debug = req[debug_key].data
+			print("debug", debug)
 
-			print(sample_z)
+			print("sample_out: ", sample_z)
+			print("sample_z: ", sample_z)
 			print("Z - 0")
-			print(broadcast_sample[0, 0, :, :, :])
+			print(np.unique(broadcast_sample[0, 0, :, :, :]))
 			print("Z - 1")
-			print(broadcast_sample[0, 1, :, :, :])
+			print(np.unique(broadcast_sample[0, 1, :, :, :]))
 			print("Z - 2")
-			print(broadcast_sample[0, 2, :, :, :])
+			print(np.unique(broadcast_sample[0, 2, :, :, :]))
 			print("Z - 3")
-			print(broadcast_sample[0, 3, :, :, :])
+			print(np.unique(broadcast_sample[0, 3, :, :, :]))
 			print("Z - 4")
-			print(broadcast_sample[0, 4, :, :, :])
+			print(np.unique(broadcast_sample[0, 4, :, :, :]))
 			print("Z - 5")
-			print(broadcast_sample[0, 5, :, :, :])
+			print(np.unique(broadcast_sample[0, 5, :, :, :]))
 
 	print("Training finished")
 
