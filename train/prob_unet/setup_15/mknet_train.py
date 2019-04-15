@@ -86,8 +86,8 @@ def create_network(input_shape, setup_dir):
 		posterior.build()
 		print ("")
 
-	sample_z = posterior.sample()
-	sample_z_batched = tf.reshape(sample_z, (1, 1, 6))
+		sample_z = posterior.sample()
+		sample_z_batched = tf.reshape(sample_z, (1, 1, 6))
 
 	with tf.variable_scope("f_comb") as vs4:
 		f_comb = FComb(

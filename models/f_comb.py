@@ -40,6 +40,7 @@ class FComb():
 		print("ones: ", self.sample_out.name)
 		print ("fmaps_in: ", self.fmaps_in.shape)
 		print("sample: ", sample.shape)
+		
 		# broadcast
 		shape = self.fmaps_in.get_shape()
 		spatial_shape = [shape[axis].value for axis in spatial_axis]
@@ -55,10 +56,7 @@ class FComb():
 
 		print ("sample: ", sample.shape)
 		broadcast_sample = tf.tile(sample, multiples)
-		# broadcast_sample = tf.tile(sample, tf.constant(multiples))
 
-		# tf.constant([1], shape=multiples)
-		# self.out = broadcast_sample
 		self.out = tf.identity(broadcast_sample)
 		fmaps = tf.concat([self.fmaps_in, broadcast_sample], axis=channel_axis)
 
@@ -77,8 +75,6 @@ class FComb():
 
 		print ("output: ", fmaps.shape)
 		self.fmaps = fmaps
-		return tf.ones([1,1,6])
-
 
 
 	def get_fmaps(self):

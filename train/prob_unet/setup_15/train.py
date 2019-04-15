@@ -30,7 +30,7 @@ with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
 beta = 1e-10
-phase_switch = 2000
+phase_switch = 0
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
@@ -258,7 +258,7 @@ def train(iterations):
 			},
 			summary=train_summary,
 			log_dir='log/prob_unet/' + setup_name,
-			save_every=1)
+			save_every=2000)
 
 	pipeline += IntensityScaleShift(
 			array=raw_key,
@@ -276,7 +276,7 @@ def train(iterations):
 				gt_affs_in_key: 'volumes/gt_affs_in'
 			},
 			output_filename='prob_unet/' + setup_name + '/batch_{iteration}.hdf',
-			every=1000,
+			every=2000,
 			dataset_dtypes={
 				labels_key: np.uint64,
 				picked_labels_key: np.uint64,
