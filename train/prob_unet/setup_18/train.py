@@ -20,7 +20,7 @@ from nodes import PickRandomLabel
 
 logging.basicConfig(level=logging.INFO)
 
-data_dir = "data/gt_1_merge_3_cropped"
+data_dir = "data/gt_1_merge_3"
 samples = ["batch_%08i"%i for i in range(2000)]
 
 setup_name = sys.argv[1]
@@ -29,7 +29,8 @@ setup_dir = 'train/prob_unet/' + setup_name + '/'
 with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
-phase_switch = 0
+beta = 1e-10
+phase_switch = 2000
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
@@ -77,19 +78,12 @@ def train(iterations):
 	pred_affs_key = ArrayKey('PRED_AFFS')
 	pred_affs_gradient_key = ArrayKey('PRED_AFFS_GRADIENT')
 
-	sample_z_key = ArrayKey("SAMPLE_Z")
-	broadcast_key = ArrayKey("BROADCAST")
-	sample_out_key = ArrayKey("SAMPLE_OUT")
-	debug_key = ArrayKey("DEBUG")
-
-
 	voxel_size = Coordinate((1, 1, 1))
 	input_shape = Coordinate(config['input_shape']) * voxel_size
 	input_affs_shape = Coordinate([i + 1 for i in config['input_shape']]) * voxel_size
 	output_shape = Coordinate(config['output_shape']) * voxel_size
 	output_affs_shape = Coordinate([i + 1 for i in config['output_shape']]) * voxel_size
 	sample_shape = Coordinate((1, 1, 6)) * voxel_size
-	debug_shape = Coordinate((1, 1, 5)) * voxel_size
 
 	print ("input_shape: ", input_shape)
 	print ("input_affs_shape: ", input_affs_shape)
@@ -114,15 +108,6 @@ def train(iterations):
 
 	request.add(pred_affs_key, output_shape)
 	request.add(pred_affs_gradient_key, output_shape)
-
-	request.add(broadcast_key, output_shape)
-	request.add(sample_z_key, sample_shape)
-	request.add(sample_out_key, sample_shape)
-	request.add(debug_key, debug_shape)
-
-	# offset = Coordinate((input_shape[i]-output_shape[i])/2 for i in range(len(input_shape)))
-	# crop_roi = Roi(offset, output_shape)
-	# print("crop_roi: ", crop_roi)
 
 	dataset_names = {
 		labels_key: 'volumes/labels',
@@ -180,10 +165,8 @@ def train(iterations):
 		pipeline += PickRandomLabel(
 				input_labels = [labels_key] + merged_labels_keys,
 				output_label=picked_labels_key,
-				probabilities=[0.5, 0.5, 0, 0])
+				probabilities=[0.25, 0.25, 0.25, 0.25])
 
-		pipeline += RenumberConnectedComponents(
-			labels=picked_labels_key)		
 
 	pipeline += GrowBoundary(picked_labels_key, steps=1, only_xy=True)
 
@@ -198,7 +181,6 @@ def train(iterations):
 			affinities=gt_affs_out_key,
 			affinities_mask=gt_affs_mask_key)
 
-	# if phase == 'euclid':
 	pipeline += BalanceLabels(
 			labels=gt_affs_out_key,
 			scales=gt_affs_scale_key)
@@ -211,6 +193,11 @@ def train(iterations):
 			axis=0)
 
 	pipeline += IntensityScaleShift(raw_key, 2,-1)
+
+	if phase == 'malis':
+
+		pipeline += RenumberConnectedComponents(
+			labels=picked_labels_key)
 
 	pipeline += PreCache(
 			cache_size=8,
@@ -227,7 +214,6 @@ def train(iterations):
 		train_loss = config['loss']
 		train_optimizer = config['optimizer']
 		train_summary = config['summary']
-		# train_inputs[config['pred_affs_loss_weights']] = input_affinities_scale_key
 	else:
 		train_loss = None
 		train_optimizer = add_malis_loss
@@ -242,10 +228,6 @@ def train(iterations):
 			inputs=train_inputs,
 			outputs={
 				config['pred_affs']: pred_affs_key,
-				config['broadcast']: broadcast_key,
-				config['sample_z']: sample_z_key,
-				config['sample_out']: sample_out_key,
-				config['debug']: debug_key
 			},
 			gradients={
 				config['pred_affs']: pred_affs_gradient_key
@@ -283,27 +265,6 @@ def train(iterations):
 	with build(pipeline) as p:
 		for i in range(iterations - trained_until):
 			req = p.request_batch(request)
-			# sample_z = req[sample_z_key].data
-			# broadcast_sample = req[broadcast_key].data
-			# sample_out = req[sample_out_key].data
-			# print("sample_out:", sample_out)
-			# debug = req[debug_key].data
-			# print("debug", debug)
-
-			# print("sample_z: ", sample_z)
-			# print("Z - 0")
-			# print(np.unique(broadcast_sample[0, 0, :, :, :]))
-			# print("Z - 1")
-			# print(np.unique(broadcast_sample[0, 1, :, :, :]))
-			# print("Z - 2")
-			# print(np.unique(broadcast_sample[0, 2, :, :, :]))
-			# print("Z - 3")
-			# print(np.unique(broadcast_sample[0, 3, :, :, :]))
-			# print("Z - 4")
-			# print(np.unique(broadcast_sample[0, 4, :, :, :]))
-			# print("Z - 5")
-			# print(np.unique(broadcast_sample[0, 5, :, :, :]))
-
 	print("Training finished")
 
 def add_malis_loss(graph):

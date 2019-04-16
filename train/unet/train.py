@@ -43,9 +43,10 @@ def train(iterations):
 	gt_affs_mask = ArrayKey('GT_AFFINITIES_MASK')
 	debug_key = ArrayKey("DEBUG")
 
-	input_shape = Coordinate(config['input_shape']) 
-	output_shape = Coordinate(config['output_shape']) 
-	debug_shape = Coordinate((1, 1, 1)) 
+	voxel_size = Coordinate((1, 1, 1))
+	input_shape = Coordinate(config['input_shape']) * voxel_size
+	output_shape = Coordinate(config['output_shape']) * voxel_size
+	debug_shape = Coordinate((1, 1, 5)) * voxel_size
 
 	print ("input_shape: ", input_shape)
 	print ("output_shape: ", output_shape)
