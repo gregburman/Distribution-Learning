@@ -183,6 +183,8 @@ def train(iterations):
 				output_label=picked_labels_key,
 				probabilities=[0.5, 0.5, 0, 0])
 
+		pipeline += RenumberConnectedComponents(
+			labels=picked_labels_key)		
 
 	pipeline += GrowBoundary(picked_labels_key, steps=1, only_xy=True)
 
@@ -210,13 +212,6 @@ def train(iterations):
 			axis=0)
 
 	pipeline += IntensityScaleShift(raw_key, 2,-1)
-
-	if phase == 'malis':
-		# pipeline += Crop(
-		# 	key=merged_labels_key,
-		# 	roi=crop_roi)
-		pipeline += RenumberConnectedComponents(
-			labels=picked_labels_key)
 
 	pipeline += PreCache(
 			cache_size=8,
