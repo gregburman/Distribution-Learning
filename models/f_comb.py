@@ -29,7 +29,7 @@ class FComb():
 		self.fmaps = None
 
 	def build(self):
-		print ("BUILDaaaa: ", self.name)
+		print ("BUILD: ", self.name)
 
 		# with tf.variable_scope(self.name) as vs:
 

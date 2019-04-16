@@ -1,4 +1,4 @@
-FROM funkey/gunpowder:v0.3.2
+FROM funkey/gunpowder:v1.1
 LABEL maintainer gburman@ini.uzh.ch
 
 # RUN pip install --upgrade tensorflow-probability
