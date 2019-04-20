@@ -69,7 +69,6 @@ def train(iterations):
 	for i in range(num_merges):
 		merged_labels_keys.append(ArrayKey('MERGED_LABELS_%i'%(i+1)))
 
-
 	gt_affs_out_key = ArrayKey('GT_AFFINITIES')
 	gt_affs_in_key = ArrayKey('GT_AFFINITIES_IN')
 	gt_affs_mask_key = ArrayKey('GT_AFFINITIES_MASK')
@@ -158,7 +157,7 @@ def train(iterations):
 		pipeline += PickRandomLabel(
 				input_labels = [labels_key]+ merged_labels_keys,
 				output_label=picked_labels_key,
-				probabilities=[1, 0, 0, 0])
+				probabilities=[0, 1, 0, 0])
 
 	else: 
 
@@ -250,7 +249,7 @@ def train(iterations):
 				pred_affs_key: 'volumes/pred_affs'
 			},
 			output_filename='prob_unet/' + setup_name + '/batch_{iteration}.hdf',
-			every=2000,
+			every=1,
 			dataset_dtypes={
 				labels_key: np.uint16,
 				picked_labels_key: np.uint16,
