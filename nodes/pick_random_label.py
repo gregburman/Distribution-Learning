@@ -35,6 +35,6 @@ class PickRandomLabel(BatchFilter):
 		spec.roi = request[self.output_label].roi.copy()
 		batch.arrays[self.output_label] = gp.Array(output_label, spec)
 
-		for i in self.input_labels:
-			roi = request[i].roi
-			batch.arrays[i] = batch.arrays[i].crop(roi)
+		# for i in self.input_labels:
+		# 	roi = request[i].roi
+		# 	batch.arrays[i] = batch.arrays[i].crop(roi)

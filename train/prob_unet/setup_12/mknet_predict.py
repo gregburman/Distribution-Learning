@@ -60,19 +60,11 @@ def create_network(input_shape, setup_dir):
 	prior.build()
 	print ("")
 
-	with tf.variable_scope("foo") as scope:
-		z = prior.sample()*100
-		z0arg = tf.identity(z)
-		z0_batched = tf.reshape(z0arg, (1, 1, 6), name="z0arg") # for tf
-		z1arg = tf.identity(z0arg)
-		z1_batched = tf.reshape(z1arg, (1, 1, 6), name="z1arg") # for tf
-		# z2arg = tf.identity(z1arg)
-		# z2_batched = tf.reshape(z2arg, (1, 1, 6), name="z2arg") # for tf
+	sample_z = prior.sample()
 
 	f_comb = FComb(
 		fmaps_in = unet.get_fmaps(),
-		sample_in = z,
-		# sample_in = tf.reshape(tf.constant([5,5,5,-5,-5,-5], dtype=np.float32), (1,6)),
+		sample_in = sample_z,
 		num_1x1_convs = 3,
 		num_channels = 12,
 		padding_type = 'valid',
@@ -92,8 +84,6 @@ def create_network(input_shape, setup_dir):
 		name="affs")
 	print ("")
 
-	broadcast_sample = f_comb.out
-
 	pred_affs = tf.sigmoid(pred_logits)
 
 	output_shape_batched = pred_logits.get_shape().as_list()
@@ -101,11 +91,6 @@ def create_network(input_shape, setup_dir):
 
 	pred_logits = tf.squeeze(pred_logits, axis=[0], name="pred_logits")
 	pred_affs = tf.squeeze(pred_affs, axis=[0], name="pred_affs")
-	
-	# sample_z = tf.squeeze(prior.sample(), axis=[0], name="sample_z")
-	# sample_z = prior.sample()
-	sample_z_batched = tf.reshape(z, (1, 1, 6), name="sample_z") # for tf
-	# print("sample_z", sample_z_batched.shape)
 
 	print ("pred_logits: ", pred_logits.shape)
 	print ("pred_affs: ", pred_affs.shape)
@@ -121,11 +106,6 @@ def create_network(input_shape, setup_dir):
 		'pred_affs': pred_affs.name,
 		'input_shape': input_shape,
 		'output_shape': output_shape,
-		'broadcast': broadcast_sample.name,
-		'sample_z': sample_z_batched.name,
-		'z0': z0_batched.name,
-		'z1': z1_batched.name,
-		# 'z2': z2_batched.name
 	}
 	with open(setup_dir + 'predict_config.json', 'w') as f:
 		json.dump(config, f)

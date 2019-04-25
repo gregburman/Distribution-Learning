@@ -3,123 +3,179 @@ import sys
 sys.path.append('../')
 
 from gunpowder import *
-from gunpowder.tensorflow import *
 from nodes import ToyNeuronSegmentationGenerator
 from nodes import AddJoinedAffinities
 from nodes import AddRealism
+from nodes import MergeLabels
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
-import os
-import json
 
 import time
 
 # logging.getLogger('gp.AddAffinities').setLevel(logging.DEBUG)
 logging.basicConfig(level=logging.INFO)
 
-with open(os.path.join('tests/train_net.json'), 'r') as f:
-	config = json.load(f)
+def generate_full_samples(num_batches):
 
-neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
+	neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
+	neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
-def generate_data(num_batches):
-
-	labels_key = ArrayKey('GT_LABELS')
-	affinities_key= ArrayKey('AFFINITIES')
-	joined_affinities_key= ArrayKey('JOINED_AFFINITIES')
+	# define array-keys
+	labels_key = ArrayKey('LABELS')
+	gt_affs_key = ArrayKey('RAW_AFFINITIES')
+	gt_joined_affs_key = ArrayKey('RAW_JOINED_AFFINITIES')
 	raw_key = ArrayKey('RAW')
-	gt_affs_mask = ArrayKey('GT_AFFINITIES_MASK')
-	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
-	debug_key = ArrayKey("DEBUG")
-	gt_affs_in_key = ArrayKey('GT_AFFINITIES_IN')
+
+	merged_labels_key = []
+	merged_affs_key = []
+	
+	affs_neg_key = ArrayKey('AFFINITIES')
+	affs_pos_key = ArrayKey('AFFINITIES_OPP')
+	joined_affs_neg_key = ArrayKey('JOINED_AFFINITIES')
+	joined_affs_pos_key = ArrayKey('JOINED_AFFINITIES_OPP')
+
+	num_merges = 3
+	for i in range(num_merges):
+		merged_labels_key.append(ArrayKey('MERGED_LABELS_%i'%(i+1)))
+		merged_affs_key.append(ArrayKey('MERGED_AFFINITIES_IN_%i'%(i+1)))
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_size = Coordinate((132,132,132)) * voxel_size
+	input_shape = Coordinate((132,132,132)) * voxel_size
+	input_affs_shape = Coordinate([i + 1 for i in (132,132,132)]) * voxel_size
 	output_shape = Coordinate((44,44,44)) * voxel_size
-	debug_shape = Coordinate((1, 1, 1)) * voxel_size
-	# output_size = Coordinate((44,44,44)) * voxel_size
+	output_affs_shape = Coordinate([i + 1 for i in (44,44,44)]) * voxel_size
 
-	print ("input_size: ", input_size)
-	# print ("output_size: ", output_size)
+	print ("input_shape: ", input_shape)
+	print ("output_shape: ", output_shape)
 
 	request = BatchRequest()
-	request.add(raw_key, input_size)
-	request.add(pred_affinities_key, output_shape)
-	request.add(debug_key, debug_shape)
-	request.add(joined_affinities_key, input_size)
-	request.add(raw_key, input_size)
-	request.add(gt_affs_in_key, input_size)
-	# request.add(output_affinities_key, output_size)
+	request.add(labels_key, input_shape)
+	
+	# request.add(gt_affs_key, input_shape)
+	# request.add(gt_joined_affs_key, input_shape)
+	# request.add(raw_key, input_shape)
 
-	# offset = Coordinate((input_size[i]-output_size[i])/2 for i in range(len(input_size)))
-	# crop_roi = Roi(offset, output_size)
-	# print("crop_roi: ", crop_roi)
 
-	# print ("input_affinities_key: ", input_affinities_key)
+	request.add(affs_neg_key, input_affs_shape)
+	request.add(affs_pos_key, input_affs_shape)
+	request.add(joined_affs_neg_key, input_affs_shape)
+	request.add(joined_affs_pos_key, input_affs_shape)
 
-	# seeds = [i for in range(10)]
+	for i in range(num_merges):
+		request.add(merged_labels_key[i], input_shape)
+		request.add(merged_affs_key[i], input_shape)
 
 	pipeline = ()
 
 	pipeline += ToyNeuronSegmentationGenerator(
-		array_key=labels_key,
-		n_objects=50,
-		points_per_skeleton=8,
-		smoothness=3,
-		noise_strength = 1,
-		interpolation="linear") 
+			array_key=labels_key,
+			n_objects=50,
+			points_per_skeleton=8,
+			smoothness=3,
+			noise_strength=1,
+			interpolation="linear")
 
-	pipeline +=  AddAffinities(
-		affinity_neighborhood=neighborhood,
-		labels=labels_key,
-		affinities=gt_affs_in_key)
+	# pipeline += AddAffinities(
+	# 		affinity_neighborhood=neighborhood,
+	# 		labels=labels_key,
+	# 		affinities=gt_affs_key)
 
-	pipeline +=  AddJoinedAffinities(
-		input_affinities=gt_affs_in_key,
-		joined_affinities=joined_affinities_key)
+	# pipeline += AddJoinedAffinities(
+	# 		input_affinities=gt_affs_key,
+	# 		joined_affinities=gt_joined_affs_key)
 
-	pipeline +=  AddRealism(
-		joined_affinities = joined_affinities_key,
-		raw = raw_key,
-		sp=0.25,
-		sigma=1,
-		contrast=0.7)
+	# pipeline += AddRealism(
+	# 		joined_affinities = gt_joined_affs_key,
+	# 		raw = raw_key,
+	# 		sp=0.25,
+	# 		sigma=1,
+	# 		contrast=0.7)
 
-	predict = Predict(
-		checkpoint = os.path.join('tests/train_net_checkpoint_1'),
-		inputs={
-			config['raw']: raw_key
-		},
-		outputs={
-			config['pred_affs']: pred_affinities_key,
-			config['debug']: debug_key,
-		},
-		# graph=os.path.join(setup_dir, 'predict_net.meta')
-	)
-	pipeline += predict
+	pipeline += AddAffinities(
+			affinity_neighborhood=neighborhood,
+			labels=labels_key,
+			affinities=affs_neg_key)
+
+	pipeline += AddAffinities(
+			affinity_neighborhood=neighborhood_opp,
+			labels=labels_key,
+			affinities=affs_pos_key)
+
+	pipeline += AddJoinedAffinities(
+			input_affinities=affs_neg_key,
+			joined_affinities=joined_affs_neg_key)
+
+	pipeline += AddJoinedAffinities(
+			input_affinities=affs_pos_key,
+			joined_affinities=joined_affs_pos_key)
+
+	for i in range(num_merges):
+
+		pipeline += MergeLabels(
+				labels = labels_key,
+				joined_affinities = joined_affs_neg_key,
+				joined_affinities_opp = joined_affs_pos_key,
+				merged_labels = merged_labels_key[i],
+				cropped_roi = output_shape,
+				every = 1) 
+
+		pipeline += AddAffinities(
+				affinity_neighborhood=neighborhood,
+				labels=merged_labels_key[i],
+				affinities=merged_affs_key[i])
+
+	pipeline += PreCache(
+		cache_size=32,
+		num_workers=8)
+
+	dataset_names = {
+		labels_key: 'volumes/labels',
+	}
+
+	dataset_dtypes = {
+		labels_key: np.uint64,
+	}
+
+	for i in range(num_merges):
+		dataset_names[merged_labels_key[i]] = 'volumes/merged_labels_%i'%(i+1)
+		dataset_dtypes[merged_labels_key[i]] = np.uint64
+
+	pipeline += Snapshot(
+		dataset_names=dataset_names,
+		output_filename='gt_1_merge_3_cropped/batch_{id}.hdf',
+		every=1,
+		dataset_dtypes=dataset_dtypes)
+
+	# pipeline += PrintProfilingStats(every=10)
+
 
 	hashes = []
 	with build(pipeline) as p:
 		for i in range(num_batches):
-			print("\nDATA POINT: ", i)
 			req = p.request_batch(request)
-			with predict.session.as_default():
-				d = predict.graph.get_tensor_by_name('debug:0')
-				print(d.eval())
-
-			# print ("labels: ", req[labels_key].data.dtype)
-			# print ("affinities: ", req[affinities_key].data.dtype)
-			# # print ("affinities_joined: ", req[joined_affinities_key].data.dtype)
-			# print ("raw: ", req[raw_key].data.dtype)
-			# print ("gt_affs_mask: ", req[gt_affs_mask].data.dtype)
-
-			# plt.imshow(req[labels_key].data[0])
-			# plt.show()
+<<<<<<< HEAD
+			# print ("labels shape: ", req[labels_key].shape)
+			label_hash = np.sum(req[labels_key].data)
+			print ("label_hash:", label_hash)
+			if label_hash in hashes:
+				print ("DUPLICATE")
+				# break
+			else:
+				hashes.append(label_hash)
+=======
+			# print ("labels shape: ", req[labels_key].data.shape)
+			label_hash = np.sum(req[labels_key].data)
+			print ("\nDATA POINT:", i, ", label_hash:", label_hash)
+			# print("")
+			# if label_hash in hashes:
+			# 	print ("DUPLICATE")
+			# 	# break
+			# else:
+			# 	hashes.append(label_hash)
+>>>>>>> 325068afbf4d36c577dc47dd8ec5840c493b1e2c
 
 if __name__ == "__main__":
 	print("Generating data...")
-	t0 = time.time()
-	generate_data(num_batches=int(sys.argv[1]))
-	print("time: ", time.time() - t0)
+	generate_full_samples(num_batches=int(sys.argv[1]))
 	print ("Data generation test finished.")
