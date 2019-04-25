@@ -7,6 +7,7 @@ from nodes import ToyNeuronSegmentationGenerator
 from nodes import AddJoinedAffinities
 from nodes import AddRealism
 from nodes import MergeLabels
+from nodes import PickRandomLabel
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
@@ -35,6 +36,8 @@ def generate_full_samples(num_batches):
 	joined_affs_neg_key = ArrayKey('JOINED_AFFINITIES')
 	joined_affs_pos_key = ArrayKey('JOINED_AFFINITIES_OPP')
 
+	picked_labels_key = ArrayKey('PICKED_LABELS')
+
 	num_merges = 3
 	for i in range(num_merges):
 		merged_labels_key.append(ArrayKey('MERGED_LABELS_%i'%(i+1)))
@@ -62,9 +65,13 @@ def generate_full_samples(num_batches):
 	request.add(joined_affs_neg_key, input_affs_shape)
 	request.add(joined_affs_pos_key, input_affs_shape)
 
+
+
 	for i in range(num_merges):
-		request.add(merged_labels_key[i], input_shape)
-		request.add(merged_affs_key[i], input_shape)
+		request.add(merged_labels_key[i], input)
+		request.add(merged_affs_key[i], input)
+
+	request.add(picked_labels_key, input)
 
 	pipeline = ()
 
@@ -117,7 +124,7 @@ def generate_full_samples(num_batches):
 				joined_affinities = joined_affs_neg_key,
 				joined_affinities_opp = joined_affs_pos_key,
 				merged_labels = merged_labels_key[i],
-				cropped_roi = output_shape,
+				cropped_roi = None,
 				every = 1) 
 
 		pipeline += AddAffinities(
@@ -125,16 +132,30 @@ def generate_full_samples(num_batches):
 				labels=merged_labels_key[i],
 				affinities=merged_affs_key[i])
 
-	pipeline += PreCache(
-		cache_size=32,
-		num_workers=8)
+	pipeline += PickRandomLabel(
+				input_labels = [labels_key]+ merged_labels_key,
+				output_label=picked_labels_key,
+				probabilities=[0, 1, 0, 0])
+
+	pipeline += RenumberConnectedComponents(
+				labels=merged_labels_key[0])
+
+	pipeline += GrowBoundary(merged_labels_key[0], steps=1, only_xy=True)
+
+
+
+	# pipeline += PreCache(
+	# 	cache_size=32,
+	# 	num_workers=8)
 
 	dataset_names = {
 		labels_key: 'volumes/labels',
+		picked_labels_key: 'volumes/picked'
 	}
 
 	dataset_dtypes = {
-		labels_key: np.uint64,
+		labels_key: np.uint16,
+		picked_labels_key: np.uint16,
 	}
 
 	for i in range(num_merges):
@@ -143,7 +164,7 @@ def generate_full_samples(num_batches):
 
 	pipeline += Snapshot(
 		dataset_names=dataset_names,
-		output_filename='gt_1_merge_3_cropped/batch_{id}.hdf',
+		output_filename='debug_labels.hdf',
 		every=1,
 		dataset_dtypes=dataset_dtypes)
 
@@ -154,26 +175,15 @@ def generate_full_samples(num_batches):
 	with build(pipeline) as p:
 		for i in range(num_batches):
 			req = p.request_batch(request)
-<<<<<<< HEAD
-			# print ("labels shape: ", req[labels_key].shape)
-			label_hash = np.sum(req[labels_key].data)
-			print ("label_hash:", label_hash)
-			if label_hash in hashes:
-				print ("DUPLICATE")
-				# break
-			else:
-				hashes.append(label_hash)
-=======
 			# print ("labels shape: ", req[labels_key].data.shape)
-			label_hash = np.sum(req[labels_key].data)
-			print ("\nDATA POINT:", i, ", label_hash:", label_hash)
+			picked_labels = len(np.unique(req[picked_labels_key].data))
+			print ("\nDATA POINT:", i, ", num labels:", picked_labels)
 			# print("")
 			# if label_hash in hashes:
 			# 	print ("DUPLICATE")
 			# 	# break
 			# else:
 			# 	hashes.append(label_hash)
->>>>>>> 325068afbf4d36c577dc47dd8ec5840c493b1e2c
 
 if __name__ == "__main__":
 	print("Generating data...")

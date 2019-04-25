@@ -20,7 +20,7 @@ from nodes import PickRandomLabel
 
 logging.basicConfig(level=logging.INFO)
 
-data_dir = "data/gt_1_merge_3"
+data_dir = "data/datasets/gt_1_merge_3"
 samples = ["batch_%08i"%i for i in range(2000)]
 
 setup_name = sys.argv[1]
@@ -30,7 +30,7 @@ with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
 beta = 1e-10
-phase_switch = 2000
+phase_switch = 0
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
