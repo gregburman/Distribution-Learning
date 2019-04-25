@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py
 
+from scipy.stats import energy_distance
+
 # SETUP
 
 plt.rcParams['figure.figsize'] = [15, 5]
@@ -29,7 +31,8 @@ for i, ax in enumerate(axes[0]):
 		break
 	if data[i].name == "/volumes/labels": # labels, todo: base on name
 		labels = data[i]
-		ax.imshow(labels[22])
+		ax.imshow(labels[cropz, cropy, cropx])
+		# ax.imshow(labels[22])
 	elif data[i].name == "/volumes/gt_affs":
 		affs = np.sum(data[i], axis=0)
 		ax.imshow(affs[cropz, cropy, cropx], cmap="Greys_r")
@@ -38,10 +41,10 @@ for i, ax in enumerate(axes[0]):
 		ax.imshow(raw[cropz, cropy, cropx], cmap="Greys_r")
 
 # PREDICTIONS
-file_1 = h5py.File('../snapshots/prob_unet/setup_15/prediction_00000000.hdf', 'r')
-file_2 = h5py.File('../snapshots/prob_unet/setup_15/prediction_00000001.hdf', 'r')
-file_3 = h5py.File('../snapshots/prob_unet/setup_15/prediction_00000002.hdf', 'r')
-file_4 = h5py.File('../snapshots/prob_unet/setup_15/prediction_00000003.hdf', 'r')
+file_1 = h5py.File('../snapshots/prob_unet/setup_23/prediction_00000000.hdf', 'r')
+file_2 = h5py.File('../snapshots/prob_unet/setup_23/prediction_00000001.hdf', 'r')
+file_3 = h5py.File('../snapshots/prob_unet/setup_23/prediction_00000002.hdf', 'r')
+file_4 = h5py.File('../snapshots/prob_unet/setup_23/prediction_00000003.hdf', 'r')
 volumes_1 = file_1['volumes']
 volumes_2 = file_2['volumes']
 volumes_3 = file_3['volumes']
@@ -57,9 +60,26 @@ for i, ax in enumerate(axes[1]):
 
 for i, ax in enumerate(axes[2]):
 	sample_z = samples[i][0]
+	print ("prediction ", i, "sample_z: ", sample_z)
 	ax.imshow(sample_z)
 	ax.get_yaxis().set_ticks([])
 
+# Energy Distance calc
+pred_0_z = np.array(pred[0][0])
+pred_0_y = np.array(pred[0][1])
+pred_0_x = np.array(pred[0][2])
+
+pred_1_z = np.array(pred[1][0])
+pred_1_y = np.array(pred[1][1])
+pred_1_x = np.array(pred[1][2])
+
+print(pred_0_z.shape)
+ed01z = energy_distance(pred_0_z.flatten(), pred_1_z.flatten())
+ed01y = energy_distance(pred_0_y.flatten(), pred_1_y.flatten())
+ed01x = energy_distance(pred_0_x.flatten(), pred_1_x.flatten())
+ed01 = np.sqrt(np.power(ed01z, 2) + np.power(ed01y, 2) + np.power(ed01x, 2))
+print(ed01)
+
 # DISPLAY
 
-plt.show()
+# plt.show()

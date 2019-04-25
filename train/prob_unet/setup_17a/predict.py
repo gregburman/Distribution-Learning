@@ -18,6 +18,7 @@ logging.basicConfig(level=logging.INFO)
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
 setup_dir = os.path.dirname(os.path.realpath(__file__))
+print("FOOBAR")
 
 with open(os.path.join(setup_dir, 'predict_net.json'), 'r') as f:
 	config = json.load(f)
@@ -113,4 +114,6 @@ def predict(checkpoint, iterations):
 	print("Prediction finished")
 
 if __name__ == "__main__":
+	print("FOOBAR")
+	exit()
 	predict(iterations=int(sys.argv[1]), checkpoint=int(sys.argv[2]))
