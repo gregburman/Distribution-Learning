@@ -1,68 +1,145 @@
 from __future__ import print_function
 import sys
 sys.path.append('../')
-from nodes import ToyNeuronSegmentationGenerator
+
 from gunpowder import *
 import numpy as np
-import logging
+import os
 
-# logging.getLogger('gunpowder.add_affinities').setLevel(logging.DEBUG)
-# logging.basicConfig(level=logging.DEBUG)
+data_dir = "data/datasets/gt_1_merge_3_cropped"
+neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
-# shape = np.array ([50, 50, 50])  # z, y, x
+# samples = ["batch_%08i"%i for i in range(1)]
 
-def generate_affinities(num_batches):
+
+def generate_affinities(iteration):
+
+	samples = ["batch_%08i"%iteration]
 
 	labels_key = ArrayKey('GT_LABELS')
-	input_affinities_key= ArrayKey('AFFINITIES_IN')
-	output_affinities_key= ArrayKey('AFFINITIES_OUT')
+	gt_affs_key = ArrayKey('GT_AFFINITIES')
+
+	merged_labels_keys = []
+	merged_affs_keys = []
+
+	num_merges = 3
+	for i in range(num_merges):
+		merged_labels_keys.append(ArrayKey('MERGED_LABELS_%i'%(i+1)))
+		merged_affs_keys.append(ArrayKey('MERGED_AFFINITIES_%i'%(i+1)))
 
 	voxel_size = Coordinate((1, 1, 1))
-	input_affinities_size = Coordinate((132,132,132)) * voxel_size
-	output_affinities_size = Coordinate((44,44,44)) * voxel_size
+	input_shape = Coordinate((132,132,132)) * voxel_size
+	output_shape = Coordinate((44,44,44)) * voxel_size
 
-	print ("input_affinities_size: ", input_affinities_size)
-	print ("output_affinities_size: ", output_affinities_size)
+	# print ("input_shape: ", input_shape)
+	# print ("output_shape: ", output_shape)
 
 	request = BatchRequest()
-	request.add(input_affinities_key, input_affinities_size)
-	request.add(output_affinities_key, output_affinities_size)
+	request.add(labels_key, input_shape)
+	# request.add(gt_affs_key, input_shape)
 
-	pipeline = (
-		ToyNeuronSegmentationGenerator(
-			array_key=labels_key,
-			n_objects=50,
-			points_per_skeleton=5,
-			smoothness=2,
-			interpolation="linear") +
-		AddAffinities(
-			affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-			labels=labels_key,
-			affinities=input_affinities_key) +
-		# AddAffinities(
-		# 	affinity_neighborhood=[[-1, 0, 0], [0, -1, 0], [0, 0, -1]],
-		# 	labels=labels_key,
-		# 	affinities=output_affinities_key) +
-		 # Snapshot(
-		 # 	dataset_names={
-			# 	labels_key: 'volumes/labels',
-			# 	input_affinities_key: 'volumes/affinities_in',
-			# 	output_affinities_key: 'volumes/affinities_out'
-		 # 	},
-		 # 	output_filename="affinities.hdf",
-		 # 	every=1,
-		 # 	dataset_dtypes={
-			# 	labels_key: np.uint64
-			# }) +
-		 PrintProfilingStats(every=1)
-		)
+	for i in range(num_merges): 
+		request.add(merged_labels_keys[i], input_shape)
+		# request.add(merged_affs_keys[i], output_shape)
+
+
+	read_dataset_names = {
+		labels_key: 'volumes/labels',
+	}
+
+	read_array_specs = {
+		labels_key: ArraySpec(interpolatable=False)
+	}
+
+
+	for i in range(num_merges):
+		read_dataset_names[merged_labels_keys[i]] = 'volumes/merged_labels_%i'%(i+1)
+		read_array_specs[merged_labels_keys[i]] = ArraySpec(interpolatable=False)
+		# read_array_specs[merged_affs_keys[i]] = ArraySpec(interpolatable=True)
+
+	pipeline = tuple(
+		Hdf5Source(
+			os.path.join(data_dir, sample + '.hdf'),
+			datasets = read_dataset_names,
+			array_specs = read_array_specs
+		) +
+		Pad(labels_key, None) +
+		Pad(merged_labels_keys[0], None) +
+		Pad(merged_labels_keys[1], None) +
+		Pad(merged_labels_keys[2], None)
+		for sample in samples
+	)
+
+	pipeline += RenumberConnectedComponents(
+			labels=labels_key)
+
+	# pipeline += AddAffinities(
+	# 	affinity_neighborhood=neighborhood,
+	# 	labels=labels_key,
+	# 	affinities=gt_affs_key)
+
+	for i in range(num_merges): 
+
+		pipeline += RenumberConnectedComponents(
+			labels=merged_labels_keys[i])
+
+		# pipeline += AddAffinities(
+		# 		affinity_neighborhood=neighborhood,
+		# 		labels=merged_labels_keys[i],
+		# 		affinities=merged_affs_keys[i])
+
+	# write_dataset_names = {
+	# 	labels_key: 'volumes/labels',
+	# 	gt_affs_key: 'volumes/gt_affs'
+	# }
+
+	# write_dataset_dtypes = {
+	# 	labels_key: np.uint16,
+	# 	gt_affs_key: np.float32,
+	# }
+
+	# for i in range(num_merges):
+	# 	write_dataset_names[merged_labels_keys[i]] = 'volumes/merged_labels_%i'%(i+1)
+	# 	write_dataset_dtypes[merged_labels_keys[i]] = np.uint16
+	# 	write_dataset_names[merged_affs_keys[i]] = 'volumes/merged_affs_%i'%(i+1)
+	# 	write_dataset_dtypes[merged_affs_keys[i]] = np.float32
+
+	# pipeline += Snapshot(
+	# 	dataset_names=write_dataset_names,
+	# 	output_filename='all_affinities.hdf',
+	# 	every=1,
+	# 	dataset_dtypes=write_dataset_dtypes)
 
 	with build(pipeline) as p:
-		for i in range(num_batches):
-			req = p.request_batch(request)
-			print ("affs: dtype", req[input_affinities_key].data.dtype)
+		num_same = 0
+		num_diff = 0
+		req = p.request_batch(request)
+		labels = np.array(req[labels_key].data)
+		num_labels = len(np.unique(labels))
+		# print(num_labels)
+
+		for i in range(num_merges):
+			merged_labels = np.array(req[merged_labels_keys[i]].data)
+			num_merged_labels = len(np.unique(merged_labels))
+			if num_merged_labels == num_labels:
+				num_same += 1
+			else:
+				num_diff +=1
+			# print(num_merged_labels)
+		# print("foo")
+		return (num_same, num_diff)
 
 if __name__ == "__main__":
 	print ("Generating affinities...")
-	generate_affinities(num_batches=int(sys.argv[1]))
+	num_same = 0
+	num_diff = 0
+	print ("running...")
+	for i in range(int(sys.argv[1])):
+
+		results = generate_affinities(iteration=i)
+		num_same += results[0]
+		num_diff += results[1]
+	print("total num_same: ", num_same)
+	print("total num_diff: ", num_diff)
+
 	print ("Affinities generation test finished.")

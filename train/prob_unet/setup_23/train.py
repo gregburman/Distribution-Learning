@@ -146,7 +146,7 @@ def train(iterations):
         Pad(merged_labels_keys[2], None)
         # Pad(merged_labels_key[i], None) for i in range(num_merges) # don't know why this doesn't work
         for sample in samples
-		)
+	)
 
 	pipeline += RandomProvider()
 
