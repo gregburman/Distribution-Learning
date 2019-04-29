@@ -46,7 +46,7 @@ def predict(checkpoint, iterations):
 
 	request = BatchRequest()
 	request.add(labels_key, output_shape)
-	request.add(affinities_key, input_shape)
+	request.add(affinities_key, output_shape)
 	request.add(raw_key, input_shape)
 	request.add(pred_affinities_key, output_shape)
 	request.add(broadcast_key, output_shape)

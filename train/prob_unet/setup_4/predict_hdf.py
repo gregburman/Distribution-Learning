@@ -57,7 +57,7 @@ def predict(checkpoint, iterations):
 			filename="snapshots/prob_unet/test_sample.hdf",
 			datasets = {
 				labels_key: 'volumes/labels',
-				affinities_key: 'volumes/affinities',
+				affinities_key: 'volumes/gt_affs',
 				raw_key: 'volumes/raw'
 			}) +
 		# Pad(raw_key, size=None) +
@@ -82,7 +82,7 @@ def predict(checkpoint, iterations):
 		Snapshot(
 			dataset_names={
 				labels_key: 'volumes/labels',
-				affinities_key: 'volumes/affs',
+				affinities_key: 'volumes/gt_affs',
 				raw_key: 'volumes/raw',
 				pred_affinities_key: 'volumes/pred_affs',
 				sample_z_key: 'volumes/sample_z'

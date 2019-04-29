@@ -6,7 +6,7 @@ from gunpowder import *
 import numpy as np
 import os
 
-data_dir = "data/datasets/gt_1_merge_3_cropped"
+data_dir = "../data/datasets/gt_1_merge_3_cropped"
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 
 # samples = ["batch_%08i"%i for i in range(1)]
@@ -35,12 +35,12 @@ def generate_affinities(iteration):
 	# print ("output_shape: ", output_shape)
 
 	request = BatchRequest()
-	request.add(labels_key, input_shape)
-	# request.add(gt_affs_key, input_shape)
+	request.add(labels_key, output_shape)
+	request.add(gt_affs_key, output_shape)
 
 	for i in range(num_merges): 
-		request.add(merged_labels_keys[i], input_shape)
-		# request.add(merged_affs_keys[i], output_shape)
+		request.add(merged_labels_keys[i], output_shape)
+		request.add(merged_affs_keys[i], output_shape)
 
 
 	read_dataset_names = {
@@ -73,20 +73,20 @@ def generate_affinities(iteration):
 	pipeline += RenumberConnectedComponents(
 			labels=labels_key)
 
-	# pipeline += AddAffinities(
-	# 	affinity_neighborhood=neighborhood,
-	# 	labels=labels_key,
-	# 	affinities=gt_affs_key)
+	pipeline += AddAffinities(
+		affinity_neighborhood=neighborhood,
+		labels=labels_key,
+		affinities=gt_affs_key)
 
 	for i in range(num_merges): 
 
 		pipeline += RenumberConnectedComponents(
 			labels=merged_labels_keys[i])
 
-		# pipeline += AddAffinities(
-		# 		affinity_neighborhood=neighborhood,
-		# 		labels=merged_labels_keys[i],
-		# 		affinities=merged_affs_keys[i])
+		pipeline += AddAffinities(
+				affinity_neighborhood=neighborhood,
+				labels=merged_labels_keys[i],
+				affinities=merged_affs_keys[i])
 
 	# write_dataset_names = {
 	# 	labels_key: 'volumes/labels',
@@ -115,31 +115,46 @@ def generate_affinities(iteration):
 		num_diff = 0
 		req = p.request_batch(request)
 		labels = np.array(req[labels_key].data)
+		# print("shape: ", labels.shape)
+		gt_affs = np.array(req[gt_affs_key].data)
 		num_labels = len(np.unique(labels))
-		# print(num_labels)
-
+		# print("num labels (unmerged): ", num_labels)
+		diff_norm = []
 		for i in range(num_merges):
 			merged_labels = np.array(req[merged_labels_keys[i]].data)
 			num_merged_labels = len(np.unique(merged_labels))
+			merged_affs = np.array(req[merged_affs_keys[i]].data)
 			if num_merged_labels == num_labels:
 				num_same += 1
-			else:
+			else: # merge occurs
 				num_diff +=1
-			# print(num_merged_labels)
+				gt_affs_count = np.count_nonzero(gt_affs == 0)
+				merged_affs_count = np.count_nonzero(merged_affs == 0)
+				diff = gt_affs_count - merged_affs_count
+				diff_norm.append(diff/float(gt_affs_count))
+			# print("diff: ", diff)
+			# print("merged: ", merged_affs_count)
+				print("gt_affs: ", gt_affs_count)
+			# print("diff_norm: ", diff_norm)
+			# print("num labels (merged)", num_merged_labels)
 		# print("foo")
-		return (num_same, num_diff)
+		return (num_same, num_diff, diff_norm)
 
 if __name__ == "__main__":
 	print ("Generating affinities...")
 	num_same = 0
 	num_diff = 0
+	diff_norm = 0
 	print ("running...")
 	for i in range(int(sys.argv[1])):
-
+		print("iteration: ", i)
 		results = generate_affinities(iteration=i)
 		num_same += results[0]
 		num_diff += results[1]
+		for _, r in enumerate(results[2]):
+			diff_norm += r
 	print("total num_same: ", num_same)
 	print("total num_diff: ", num_diff)
+	print("total diff_norm: ", diff_norm)
 
 	print ("Affinities generation test finished.")

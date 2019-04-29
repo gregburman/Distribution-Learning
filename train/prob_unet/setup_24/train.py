@@ -89,7 +89,7 @@ def train(iterations):
 	input_affs_shape = Coordinate([i + 1 for i in config['input_shape']]) * voxel_size
 	output_shape = Coordinate(config['output_shape']) * voxel_size
 	output_affs_shape = Coordinate([i + 1 for i in config['output_shape']]) * voxel_size
-	sample_shape = Coordinate((1, 1, 12)) * voxel_size
+	sample_shape = Coordinate((1, 1, 6)) * voxel_size
 	debug_shape = Coordinate((1, 1, 5)) * voxel_size
 
 	print ("input_shape: ", input_shape)
