@@ -20,7 +20,7 @@ from nodes import PickRandomLabel
 
 logging.basicConfig(level=logging.INFO)
 
-data_dir = "data/gt_1_merge_3_cropped"
+data_dir = "data/datasets/gt_1_merge_3_cropped"
 samples = ["batch_%08i"%i for i in range(2000)]
 
 setup_name = sys.argv[1]
@@ -30,7 +30,7 @@ with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
 beta = 1e-10
-phase_switch = 2000
+phase_switch = 0
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
@@ -89,7 +89,7 @@ def train(iterations):
 	input_affs_shape = Coordinate([i + 1 for i in config['input_shape']]) * voxel_size
 	output_shape = Coordinate(config['output_shape']) * voxel_size
 	output_affs_shape = Coordinate([i + 1 for i in config['output_shape']]) * voxel_size
-	sample_shape = Coordinate((1, 1, 12)) * voxel_size
+	sample_shape = Coordinate((1, 1, config['latent_dims'])) * voxel_size
 	debug_shape = Coordinate((1, 1, 5)) * voxel_size
 
 	print ("input_shape: ", input_shape)
@@ -310,10 +310,11 @@ def train(iterations):
 	print("Training finished")
 
 def add_malis_loss(graph):
-	pred_affs = graph.get_tensor_by_name(config['pred_affs'])
+	pred_logits = graph.get_tensor_by_name(config['pred_logits'])
 	gt_affs = graph.get_tensor_by_name(config['gt_affs_out'])
 	gt_seg = tf.placeholder(tf.int32, shape=config['output_shape'], name='gt_seg')
 	gt_affs_mask = tf.placeholder(tf.int32, shape=[3] + config['output_shape'], name='gt_affs_mask')
+	pred_affs_loss_weights = graph.get_tensor_by_name(config['pred_affs_loss_weights'])
 
 	prior = graph.get_tensor_by_name(config['prior'])
 	posterior = graph.get_tensor_by_name(config['posterior'])
@@ -321,24 +322,28 @@ def add_malis_loss(graph):
 	p = z(prior)
 	q = z(posterior)
 
-	mlo = malis.malis_loss_op(pred_affs, 
-		gt_affs, 
-		gt_seg,
-		neighborhood,
-		gt_affs_mask)
+	sce = tf.losses.sigmoid_cross_entropy(
+		multi_class_labels = gt_affs,
+		logits = pred_logits,
+		weights = pred_affs_loss_weights)
 
-	kl = tf.distributions.kl_divergence(p, q)
-	kl = tf.reshape(kl, [], name="kl_loss")
+	# mse = tf.losses.mean_squared_error(
+	# gt_affs,
+	# pred_affs,
+	# pred_affs_loss_weights)
 
-	loss = mlo + beta * kl
-	tf.summary.scalar('malis_loss', mlo)
+	# kl = tf.distributions.kl_divergence(p, q)
+	# kl = tf.reshape(kl, [], name="kl_loss")
+
+	loss = sce + beta * kl
+	tf.summary.scalar('mse_loss', mse)
 	tf.summary.scalar('kl_loss', kl)
 	opt = tf.train.AdamOptimizer(
 		learning_rate=0.5e-4,
 		beta1=0.95,
 		beta2=0.999,
 		epsilon=1e-8,
-		name='malis_optimizer')
+		name='mse_optimizer')
 
 	summary = tf.summary.merge_all()
 	# print(summary)

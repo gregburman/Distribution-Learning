@@ -144,7 +144,7 @@ def create_network(input_shape, setup_dir):
 	# 	logits = pred_logits,
 	# 	weights = pred_affs_loss_weights)
 
-	summary = tf.summary.scalar('mse_loss', mse_loss)
+	summary = tf.summary.scalar('pre_mse', mse_loss)
 	# summary = tf.summary.merge_all()
 
 	# opt = tf.train.AdamOptimizer(

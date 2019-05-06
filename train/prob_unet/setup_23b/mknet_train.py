@@ -11,7 +11,7 @@ from models.f_comb import FComb
 
 def create_network(input_shape, setup_dir):
 
-	latent_dims = 6
+	latent_dims = 12
 
 	print ("MKNET: PROB-UNET TRAIN")
 	print("")

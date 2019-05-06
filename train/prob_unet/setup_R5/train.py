@@ -30,7 +30,7 @@ with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
 beta = 1e-10
-phase_switch = 0
+phase_switch = 10000
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
@@ -314,6 +314,7 @@ def add_malis_loss(graph):
 	gt_affs = graph.get_tensor_by_name(config['gt_affs_out'])
 	gt_seg = tf.placeholder(tf.int32, shape=config['output_shape'], name='gt_seg')
 	gt_affs_mask = tf.placeholder(tf.int32, shape=[3] + config['output_shape'], name='gt_affs_mask')
+	# pred_affs_loss_weights = graph.get_tensor_by_name(config['pred_affs_loss_weights'])
 
 	prior = graph.get_tensor_by_name(config['prior'])
 	posterior = graph.get_tensor_by_name(config['posterior'])
@@ -327,6 +328,11 @@ def add_malis_loss(graph):
 		neighborhood,
 		gt_affs_mask)
 
+	# mse = tf.losses.mean_squared_error(
+	# gt_affs,
+	# pred_affs,
+	# pred_affs_loss_weights)
+
 	kl = tf.distributions.kl_divergence(p, q)
 	kl = tf.reshape(kl, [], name="kl_loss")
 
@@ -338,7 +344,7 @@ def add_malis_loss(graph):
 		beta1=0.95,
 		beta2=0.999,
 		epsilon=1e-8,
-		name='malis_optimizer')
+		name='mse_optimizer')
 
 	summary = tf.summary.merge_all()
 	# print(summary)
