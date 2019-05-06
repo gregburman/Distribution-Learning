@@ -30,7 +30,7 @@ with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
 beta = 1e-10
-phase_switch = 0
+phase_switch = 50000
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
@@ -89,7 +89,7 @@ def train(iterations):
 	input_affs_shape = Coordinate([i + 1 for i in config['input_shape']]) * voxel_size
 	output_shape = Coordinate(config['output_shape']) * voxel_size
 	output_affs_shape = Coordinate([i + 1 for i in config['output_shape']]) * voxel_size
-	sample_shape = Coordinate((1, 1, config['latent_dims'])) * voxel_size
+	sample_shape = Coordinate((1, 1, 6)) * voxel_size
 	debug_shape = Coordinate((1, 1, 5)) * voxel_size
 
 	print ("input_shape: ", input_shape)
@@ -113,7 +113,7 @@ def train(iterations):
 	request.add(gt_affs_mask_key, output_shape)
 	request.add(gt_affs_scale_key, output_shape)
 
-	request.add(pred_affs_key, output_shape)
+	# request.add(pred_affs_key, output_shape)
 	request.add(pred_affs_gradient_key, output_shape)
 
 	request.add(broadcast_key, output_shape)
@@ -238,7 +238,7 @@ def train(iterations):
 			loss=train_loss,
 			inputs=train_inputs,
 			outputs={
-				config['pred_affs']: pred_affs_key,
+				config['pred_logits']: pred_logits_key,
 				config['broadcast']: broadcast_key,
 				config['sample_z']: sample_z_key,
 				config['pred_logits']: pred_logits_key,
@@ -265,7 +265,7 @@ def train(iterations):
 				raw_key: 'volumes/raw',
 				gt_affs_in_key: 'volumes/gt_affs_in',
 				gt_affs_out_key: 'volumes/gt_affs_out',
-				pred_affs_key: 'volumes/pred_affs',
+				# pred_affs_key: 'volumes/pred_affs',
 				pred_logits_key: 'volumes/pred_logits'
 			},
 			output_filename='prob_unet/' + setup_name + '/batch_{iteration}.hdf',
@@ -310,11 +310,10 @@ def train(iterations):
 	print("Training finished")
 
 def add_malis_loss(graph):
-	pred_logits = graph.get_tensor_by_name(config['pred_logits'])
+	pred_affs = graph.get_tensor_by_name(config['pred_affs'])
 	gt_affs = graph.get_tensor_by_name(config['gt_affs_out'])
 	gt_seg = tf.placeholder(tf.int32, shape=config['output_shape'], name='gt_seg')
 	gt_affs_mask = tf.placeholder(tf.int32, shape=[3] + config['output_shape'], name='gt_affs_mask')
-	pred_affs_loss_weights = graph.get_tensor_by_name(config['pred_affs_loss_weights'])
 
 	prior = graph.get_tensor_by_name(config['prior'])
 	posterior = graph.get_tensor_by_name(config['posterior'])
@@ -322,28 +321,24 @@ def add_malis_loss(graph):
 	p = z(prior)
 	q = z(posterior)
 
-	sce = tf.losses.sigmoid_cross_entropy(
-		multi_class_labels = gt_affs,
-		logits = pred_logits,
-		weights = pred_affs_loss_weights)
+	mlo = malis.malis_loss_op(pred_affs, 
+		gt_affs, 
+		gt_seg,
+		neighborhood,
+		gt_affs_mask)
 
-	# mse = tf.losses.mean_squared_error(
-	# gt_affs,
-	# pred_affs,
-	# pred_affs_loss_weights)
+	kl = tf.distributions.kl_divergence(p, q)
+	kl = tf.reshape(kl, [], name="kl_loss")
 
-	# kl = tf.distributions.kl_divergence(p, q)
-	# kl = tf.reshape(kl, [], name="kl_loss")
-
-	loss = sce + beta * kl
-	tf.summary.scalar('mse_loss', mse)
+	loss = mlo + beta * kl
+	tf.summary.scalar('malis_loss', mlo)
 	tf.summary.scalar('kl_loss', kl)
 	opt = tf.train.AdamOptimizer(
 		learning_rate=0.5e-4,
 		beta1=0.95,
 		beta2=0.999,
 		epsilon=1e-8,
-		name='mse_optimizer')
+		name='malis_optimizer')
 
 	summary = tf.summary.merge_all()
 	# print(summary)
