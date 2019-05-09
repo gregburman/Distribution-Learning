@@ -29,8 +29,8 @@ setup_dir = 'train/prob_unet/' + setup_name + '/'
 with open(setup_dir + 'train_config.json', 'r') as f:
 	config = json.load(f)
 
-beta = 1e-10
-phase_switch = 50000
+beta = 1e-1
+phase_switch = 0
 neighborhood = [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]
 neighborhood_opp = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
@@ -89,7 +89,7 @@ def train(iterations):
 	input_affs_shape = Coordinate([i + 1 for i in config['input_shape']]) * voxel_size
 	output_shape = Coordinate(config['output_shape']) * voxel_size
 	output_affs_shape = Coordinate([i + 1 for i in config['output_shape']]) * voxel_size
-	sample_shape = Coordinate((1, 1, 6)) * voxel_size
+	sample_shape = Coordinate((1, 1, config['latent_dims'])) * voxel_size
 	debug_shape = Coordinate((1, 1, 5)) * voxel_size
 
 	print ("input_shape: ", input_shape)
@@ -113,7 +113,7 @@ def train(iterations):
 	request.add(gt_affs_mask_key, output_shape)
 	request.add(gt_affs_scale_key, output_shape)
 
-	# request.add(pred_affs_key, output_shape)
+	request.add(pred_affs_key, output_shape)
 	request.add(pred_affs_gradient_key, output_shape)
 
 	request.add(broadcast_key, output_shape)
@@ -166,22 +166,13 @@ def train(iterations):
 			sigma=1,
 			contrast=0.7)
 
-	if phase == "euclid":
+	pipeline += PickRandomLabel(
+			input_labels = [labels_key]+ merged_labels_keys,
+			output_label=picked_labels_key,
+			probabilities=[1, 0, 0, 0])
 
-		pipeline += PickRandomLabel(
-				input_labels = [labels_key]+ merged_labels_keys,
-				output_label=picked_labels_key,
-				probabilities=[1, 0, 0, 0])
-
-	else: 
-
-		pipeline += PickRandomLabel(
-				input_labels = [labels_key] + merged_labels_keys,
-				output_label=picked_labels_key,
-				probabilities=[0.25, 0.25, 0.25, 0.25])
-
-		pipeline += RenumberConnectedComponents(
-				labels=picked_labels_key)
+	pipeline += RenumberConnectedComponents(
+			labels=picked_labels_key)
 
 
 	pipeline += GrowBoundary(picked_labels_key, steps=1, only_xy=True)
@@ -218,7 +209,7 @@ def train(iterations):
 		config['raw']: raw_key,
 		config['gt_affs_in']: gt_affs_in_key,
 		config['gt_affs_out']: gt_affs_out_key,
-		# config['pred_affs_loss_weights']: gt_affs_scale_key
+		config['pred_affs_loss_weights']: gt_affs_scale_key
 	}
 
 	if phase == 'euclid':
@@ -265,7 +256,7 @@ def train(iterations):
 				raw_key: 'volumes/raw',
 				gt_affs_in_key: 'volumes/gt_affs_in',
 				gt_affs_out_key: 'volumes/gt_affs_out',
-				# pred_affs_key: 'volumes/pred_affs',
+				pred_affs_key: 'volumes/pred_affs',
 				pred_logits_key: 'volumes/pred_logits'
 			},
 			output_filename='prob_unet/' + setup_name + '/batch_{iteration}.hdf',
@@ -310,10 +301,11 @@ def train(iterations):
 	print("Training finished")
 
 def add_malis_loss(graph):
-	pred_affs = graph.get_tensor_by_name(config['pred_affs'])
+	pred_logits = graph.get_tensor_by_name(config['pred_logits'])
 	gt_affs = graph.get_tensor_by_name(config['gt_affs_out'])
 	gt_seg = tf.placeholder(tf.int32, shape=config['output_shape'], name='gt_seg')
 	gt_affs_mask = tf.placeholder(tf.int32, shape=[3] + config['output_shape'], name='gt_affs_mask')
+	pred_affs_loss_weights = graph.get_tensor_by_name(config['pred_affs_loss_weights'])
 
 	prior = graph.get_tensor_by_name(config['prior'])
 	posterior = graph.get_tensor_by_name(config['posterior'])
@@ -321,24 +313,33 @@ def add_malis_loss(graph):
 	p = z(prior)
 	q = z(posterior)
 
-	mlo = malis.malis_loss_op(pred_affs, 
-		gt_affs, 
-		gt_seg,
-		neighborhood,
-		gt_affs_mask)
+	# mlo = malis.malis_loss_op(pred_affs, 
+	# 	gt_affs, 
+	# 	gt_seg,
+	# 	neighborhood,
+	# 	gt_affs_mask)
+
+	# mse = tf.losses.mean_squared_error(
+	# gt_affs,
+	# pred_affs,
+	# pred_affs_loss_weights)
+
+	sce = tf.losses.sigmoid_cross_entropy(
+		gt_affs,
+		pred_logits)
 
 	kl = tf.distributions.kl_divergence(p, q)
 	kl = tf.reshape(kl, [], name="kl_loss")
 
-	loss = mlo + beta * kl
-	tf.summary.scalar('malis_loss', mlo)
+	loss = sce + beta * kl
+	tf.summary.scalar('sce_loss', sce)
 	tf.summary.scalar('kl_loss', kl)
 	opt = tf.train.AdamOptimizer(
 		learning_rate=0.5e-4,
 		beta1=0.95,
 		beta2=0.999,
 		epsilon=1e-8,
-		name='malis_optimizer')
+		name='mse_optimizer')
 
 	summary = tf.summary.merge_all()
 	# print(summary)
