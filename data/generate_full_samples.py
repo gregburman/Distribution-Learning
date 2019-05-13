@@ -129,24 +129,24 @@ def generate_full_samples(num_batches):
 	# 	cache_size=32,
 	# 	num_workers=8)
 
-	dataset_names = {
-		labels_key: 'volumes/labels',
-	}
+	# dataset_names = {
+	# 	labels_key: 'volumes/labels',
+	# }
 
-	dataset_dtypes = {
-		labels_key: np.uint16,
-	}
+	# dataset_dtypes = {
+	# 	labels_key: np.uint16,
+	# }
 
-	for i in range(num_merges):
-		dataset_names[merged_labels_key[i]] = 'volumes/merged_labels_%i'%(i+1)
-		dataset_dtypes[merged_labels_key[i]] = np.uint64
+	# for i in range(num_merges):
+	# 	dataset_names[merged_labels_key[i]] = 'volumes/merged_labels_%i'%(i+1)
+	# 	dataset_dtypes[merged_labels_key[i]] = np.uint64
 
-	pipeline += Snapshot(
-		dataset_names=dataset_names,
-		# output_filename='gt_1_merge_3_cropped/batch_{id}.hdf',
-		output_filename='test_affs.hdf',
-		every=1,
-		dataset_dtypes=dataset_dtypes)
+	# pipeline += Snapshot(
+	# 	dataset_names=dataset_names,
+	# 	# output_filename='gt_1_merge_3_cropped/batch_{id}.hdf',
+	# 	output_filename='test_affs.hdf',
+	# 	every=1,
+	# 	dataset_dtypes=dataset_dtypes)
 
 	# pipeline += PrintProfilingStats(every=10)
 
@@ -155,8 +155,16 @@ def generate_full_samples(num_batches):
 	with build(pipeline) as p:
 		for i in range(num_batches):
 			req = p.request_batch(request)
-			label_hash = np.sum(req[labels_key].data)
+			labels_full = req[labels_key].data
+			labels_cropped = __crop_center(labels_full, (44,44,44))
 			print ("\nDATA POINT:", i, ", label_hash:", label_hash)
+
+def __crop_center(self, img, crop):
+	z, y,x = img.shape
+	startz = z//2-(crop[0]//2)
+	starty = y//2-(crop[1]//2)
+	startx = x//2-(crop[2]//2)    
+	return img[startz:startz+crop[0], starty:starty+crop[1],startx:startx+crop[2]]
 
 if __name__ == "__main__":
 	print("Generating data...")
