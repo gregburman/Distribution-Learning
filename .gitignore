@@ -6,3 +6,4 @@ log/
 notebooks/.ipynb_checkpoints/y
 snapshots/
 *checkpoint*
+notebooks/hdfread_nyroglancer.ipynb
