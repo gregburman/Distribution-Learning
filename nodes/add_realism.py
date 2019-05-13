@@ -4,6 +4,8 @@ from gunpowder.nodes.batch_filter import BatchFilter
 from skimage.util import random_noise
 from skimage.filters import gaussian
 
+import matplotlib.pyplot as plt
+
 class AddRealism(BatchFilter):
 
 	def __init__(self, joined_affinities, raw, sp, sigma, contrast):
@@ -29,8 +31,12 @@ class AddRealism(BatchFilter):
 		joined_affinities = batch.arrays[self.joined_affinities].data.copy()
 
 		raw = random_noise(joined_affinities, 's&p', amount=self.sp)
+
 		raw = gaussian(raw,self.sigma)
+		# plt.imshow(raw[66], cmap="Greys_r")
 		raw = raw * self.contrast
+
+		# plt.show()
 
 		spec = self.spec[self.raw].copy()
 		spec.roi = request[self.raw].roi.copy()

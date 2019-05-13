@@ -166,22 +166,13 @@ def train(iterations):
 			sigma=1,
 			contrast=0.7)
 
-	if phase == "euclid":
+	pipeline += PickRandomLabel(
+			input_labels = [labels_key]+ merged_labels_keys,
+			output_label=picked_labels_key,
+			probabilities=[1, 0, 0, 0])
 
-		pipeline += PickRandomLabel(
-				input_labels = [labels_key]+ merged_labels_keys,
-				output_label=picked_labels_key,
-				probabilities=[1, 0, 0, 0])
-
-	else: 
-
-		pipeline += PickRandomLabel(
-				input_labels = [labels_key] + merged_labels_keys,
-				output_label=picked_labels_key,
-				probabilities=[0.25, 0.25, 0.25, 0.25])
-
-		pipeline += RenumberConnectedComponents(
-				labels=picked_labels_key)
+	pipeline += RenumberConnectedComponents(
+			labels=picked_labels_key)
 
 
 	pipeline += GrowBoundary(picked_labels_key, steps=1, only_xy=True)
@@ -246,7 +237,7 @@ def train(iterations):
 				config['debug']: debug_key
 			},
 			gradients={
-				config['pred_affs']: pred_affs_gradient_key
+				config['pred_logits']: pred_affs_gradient_key
 			},
 			summary=train_summary,
 			log_dir='log/prob_unet/' + setup_name,
@@ -322,21 +313,26 @@ def add_malis_loss(graph):
 	p = z(prior)
 	q = z(posterior)
 
-	sce = tf.losses.sigmoid_cross_entropy(
-		multi_class_labels = gt_affs,
-		logits = pred_logits,
-		weights = pred_affs_loss_weights)
+	# mlo = malis.malis_loss_op(pred_affs, 
+	# 	gt_affs, 
+	# 	gt_seg,
+	# 	neighborhood,
+	# 	gt_affs_mask)
 
 	# mse = tf.losses.mean_squared_error(
 	# gt_affs,
 	# pred_affs,
 	# pred_affs_loss_weights)
 
-	# kl = tf.distributions.kl_divergence(p, q)
-	# kl = tf.reshape(kl, [], name="kl_loss")
+	sce = tf.losses.sigmoid_cross_entropy(
+		gt_affs,
+		pred_logits)
+
+	kl = tf.distributions.kl_divergence(p, q)
+	kl = tf.reshape(kl, [], name="kl_loss")
 
 	loss = sce + beta * kl
-	tf.summary.scalar('mse_loss', mse)
+	tf.summary.scalar('sce_loss', sce)
 	tf.summary.scalar('kl_loss', kl)
 	opt = tf.train.AdamOptimizer(
 		learning_rate=0.5e-4,

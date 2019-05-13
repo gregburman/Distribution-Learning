@@ -11,6 +11,8 @@ from models.f_comb import FComb
 
 def create_network(input_shape, setup_dir):
 
+	latent_dims = 6
+
 	print ("MKNET: PROB-UNET TRAIN")
 	print("")
 	tf.reset_default_graph()
@@ -52,7 +54,7 @@ def create_network(input_shape, setup_dir):
 			fmaps_in = raw_batched,
 			affmaps_in = None,
 			num_layers = 3,
-			latent_dims = 6,
+			latent_dims = latent_dims,
 			base_channels = 12,
 			channel_inc_factor = 3,
 			downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
@@ -71,7 +73,7 @@ def create_network(input_shape, setup_dir):
 			fmaps_in = raw_batched,
 			affmaps_in = gt_affs_in_batched,
 			num_layers = 3,
-			latent_dims = 6,
+			latent_dims = latent_dims,
 			base_channels = 12,
 			channel_inc_factor = 3,
 			downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
@@ -86,7 +88,7 @@ def create_network(input_shape, setup_dir):
 		print ("")
 
 		sample_z = posterior.sample()
-		sample_z_batched = tf.reshape(sample_z, (1, 1, 6))
+		sample_z_batched = tf.reshape(sample_z, (1, 1, latent_dims))
 
 	with tf.variable_scope("f_comb") as vs4:
 		f_comb = FComb(
@@ -103,7 +105,7 @@ def create_network(input_shape, setup_dir):
 		broadcast_sample = f_comb.broadcast_sample
 		sample_out = f_comb.sample_out
 		print("sample_out_name: ", f_comb.get_fmaps().name)
-		sample_out_batched = tf.reshape(sample_out, (1, 1, 6)) 
+		sample_out_batched = tf.reshape(sample_out, (1, 1, latent_dims)) 
 
 	with tf.variable_scope("affs") as vs5:
 		pred_logits = tf.layers.conv3d(
@@ -132,27 +134,17 @@ def create_network(input_shape, setup_dir):
 	print ("pred_affs: ", pred_affs.shape)
 	print ("")
 
-	print ("gt_affs_out: ", gt_affs_out)
-	print ("pred_logits: ", pred_logits)
-	print ("pred_affs: ", pred_affs)
-
-	# sce_loss = tf.losses.mean_squared_error(
-	# 	gt_affs_out,
-	# 	pred_logits,
-	# 	pred_affs_loss_weights)
-
-	sce_loss = tf.losses.sigmoid_cross_entropy(
+	mse_loss = tf.losses.mean_squared_error(
 		gt_affs_out,
-		pred_logits)
+		pred_affs,
+		pred_affs_loss_weights)
 
-	# sce_loss = tf.losses.log_loss(
-	# 	gt_affs_out,
-	# 	pred_affs,
-	# 	pred_affs_loss_weights)
+	# sce_loss = tf.losses.sigmoid_cross_entropy(
+	# 	multi_class_labels = gt_affs_out,
+	# 	logits = pred_logits,
+	# 	weights = pred_affs_loss_weights)
 
-
-
-	summary = tf.summary.scalar('sce_loss', sce_loss)
+	summary = tf.summary.scalar('pre_mse', mse_loss)
 	# summary = tf.summary.merge_all()
 
 	# opt = tf.train.AdamOptimizer(
@@ -161,7 +153,7 @@ def create_network(input_shape, setup_dir):
 	# 	beta2=0.999,
 	# 	epsilon=1e-8)
 	opt = tf.train.AdamOptimizer()
-	optimizer = opt.minimize(sce_loss)
+	optimizer = opt.minimize(mse_loss)
 
 	output_shape = output_shape[1:]
 	print("input shape : %s" % (input_shape,))
@@ -175,13 +167,13 @@ def create_network(input_shape, setup_dir):
 		'gt_affs_in': gt_affs_in.name,
 		'gt_affs_out': gt_affs_out.name,
 		'pred_affs_loss_weights': pred_affs_loss_weights.name,
-		'loss': sce_loss.name,
+		'loss': mse_loss.name,
 		'optimizer': optimizer.name,
 		'input_shape': input_shape,
 		'output_shape': output_shape,
 		'prior': prior.get_fmaps().name,
 		'posterior': posterior.get_fmaps().name,
-		'latent_dims': 12,
+		'latent_dims': latent_dims,
 		'summary': summary.name,
 		'broadcast': broadcast_sample.name,
 		'sample_z': sample_z_batched.name,
