@@ -57,14 +57,14 @@ def generate_full_samples(num_batches):
 	# request.add(raw_key, input_shape)
 
 
-	request.add(affs_neg_key, input_affs_shape)
-	request.add(affs_pos_key, input_affs_shape)
-	request.add(joined_affs_neg_key, input_affs_shape)
-	request.add(joined_affs_pos_key, input_affs_shape)
+	request.add(affs_neg_key, input_shape)
+	request.add(affs_pos_key, input_shape)
+	request.add(joined_affs_neg_key, input_shape)
+	request.add(joined_affs_pos_key, input_shape)
 
 	for i in range(num_merges):
 		request.add(merged_labels_key[i], input_shape)
-		request.add(merged_affs_key[i], input_shape)
+		# request.add(merged_affs_key[i], input_shape)
 
 	pipeline = ()
 
@@ -117,54 +117,55 @@ def generate_full_samples(num_batches):
 				joined_affinities = joined_affs_neg_key,
 				joined_affinities_opp = joined_affs_pos_key,
 				merged_labels = merged_labels_key[i],
-				cropped_roi = output_shape,
+				cropped_roi = None,
 				every = 1) 
 
-		pipeline += AddAffinities(
-				affinity_neighborhood=neighborhood,
-				labels=merged_labels_key[i],
-				affinities=merged_affs_key[i])
+		# pipeline += AddAffinities(
+		# 		affinity_neighborhood=neighborhood,
+		# 		labels=merged_labels_key[i],
+		# 		affinities=merged_affs_key[i])
 
-	# pipeline += PreCache(
-	# 	cache_size=32,
-	# 	num_workers=8)
+	pipeline += PreCache(
+		cache_size=32,
+		num_workers=8)
 
-	# dataset_names = {
-	# 	labels_key: 'volumes/labels',
-	# }
+	dataset_names = {
+		labels_key: 'volumes/labels',
+		# affs_neg_key: 'volumes/gt_affs'
+	}
 
-	# dataset_dtypes = {
-	# 	labels_key: np.uint16,
-	# }
+	dataset_dtypes = {
+		labels_key: np.uint16,
+		# affs_neg_key: np.float32
+	}
 
-	# for i in range(num_merges):
-	# 	dataset_names[merged_labels_key[i]] = 'volumes/merged_labels_%i'%(i+1)
-	# 	dataset_dtypes[merged_labels_key[i]] = np.uint64
+	for i in range(num_merges):
+		dataset_names[merged_labels_key[i]] = 'volumes/merged_labels_%i'%(i+1)
+		# dataset_names[merged_affs_key[i]] = 'volumes/merged_affs_%i'%(i+1)
+		dataset_dtypes[merged_labels_key[i]] = np.uint16
+		# dataset_dtypes[merged_affs_key[i]] = np.float32
 
-	# pipeline += Snapshot(
-	# 	dataset_names=dataset_names,
-	# 	# output_filename='gt_1_merge_3_cropped/batch_{id}.hdf',
-	# 	output_filename='test_affs.hdf',
-	# 	every=1,
-	# 	dataset_dtypes=dataset_dtypes)
+	pipeline += Snapshot(
+		dataset_names=dataset_names,
+		output_filename='gt_1_merge_3/batch_{id}.hdf',
+		# output_filename='test_affs.hdf',
+		every=1,
+		dataset_dtypes=dataset_dtypes)
 
-	# pipeline += PrintProfilingStats(every=10)
+	pipeline += PrintProfilingStats(every=10)
 
 
 	hashes = []
 	with build(pipeline) as p:
 		for i in range(num_batches):
 			req = p.request_batch(request)
-			labels_full = req[labels_key].data
-			labels_cropped = __crop_center(labels_full, (44,44,44))
-			print ("\nDATA POINT:", i, ", label_hash:", label_hash)
-
-def __crop_center(self, img, crop):
-	z, y,x = img.shape
-	startz = z//2-(crop[0]//2)
-	starty = y//2-(crop[1]//2)
-	startx = x//2-(crop[2]//2)    
-	return img[startz:startz+crop[0], starty:starty+crop[1],startx:startx+crop[2]]
+			label_hash = np.sum(req[labels_key].data)
+			# labels = np.sum(req[labels_key].data)
+			# merge1 = np.sum(req[merged_labels_key[0]].data)
+			# merge2 = np.sum(req[merged_labels_key[1]].data)
+			# merge3 = np.sum(req[merged_labels_key[2]].data)
+			# keys = np.unique(labels)
+			# print ("\nDATA POINT:", i, ", label_hash:", label_hash)
 
 if __name__ == "__main__":
 	print("Generating data...")
