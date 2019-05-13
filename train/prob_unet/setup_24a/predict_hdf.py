@@ -33,6 +33,7 @@ def predict(checkpoint, iterations):
 	print ("checkpoint: ", checkpoint)
 
 	labels_key = ArrayKey('LABELS')
+	gt_affs_key = ArrayKey('GT_AFFINITIES')
 	raw_affs_key = ArrayKey('RAW_AFFINITIES')
 	raw_joined_affs_key = ArrayKey('RAW_JOINED_AFFINITIES')
 	raw_key = ArrayKey('RAW')
@@ -54,6 +55,7 @@ def predict(checkpoint, iterations):
 
 	request = BatchRequest()
 	request.add(labels_key, output_shape)
+	request.add(gt_affs_key, input_shape)
 	request.add(raw_affs_key, input_shape)
 	request.add(raw_joined_affs_key, input_shape)
 	request.add(raw_key, input_shape)
@@ -105,6 +107,17 @@ def predict(checkpoint, iterations):
 				sigma=1,
 				contrast=0.7) +
 
+		GrowBoundary(labels_key, steps=1, only_xy=True) +
+
+		AddAffinities(
+			affinity_neighborhood=neighborhood,
+			labels=labels_key,
+			affinities=gt_affs_key) + 
+
+		PreCache(
+			cache_size=32,
+			num_workers=8) +
+
 		IntensityScaleShift(raw_key, 2,-1) +
 		Predict(
 			checkpoint = os.path.join(setup_dir, 'train_net_checkpoint_%d' % checkpoint),
@@ -128,7 +141,7 @@ def predict(checkpoint, iterations):
 		Snapshot(
 			dataset_names={
 				labels_key: 'volumes/labels',
-				raw_affs_key: 'volumes/gt_affs',
+				gt_affs_key: 'volumes/gt_affs',
 				# raw_key: 'volumes/raw',
 				pred_affinities_key: 'volumes/pred_affs',
 				# broadcast_key: 'volumes/broadcast',
@@ -140,7 +153,7 @@ def predict(checkpoint, iterations):
 			every=1,
 			dataset_dtypes={
 				labels_key: np.uint16,
-				raw_affs_key: np.float32,
+				gt_affs_key: np.float32,
 				pred_affinities_key: np.float32,
 				# broadcast_key: np.float32,
 				sample_z_key: np.float32,
