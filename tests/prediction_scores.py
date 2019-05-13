@@ -8,6 +8,7 @@ import json
 import logging
 import numpy as np
 import os
+import pickle
 
 import matplotlib.pyplot as plt
 
@@ -17,7 +18,7 @@ from sklearn.metrics.cluster import adjusted_rand_score
 
 logging.basicConfig(level=logging.INFO)
 
-data_dir = "../snapshots/prob_unet/setup_24a"
+data_dir = "../snapshots/prob_unet/setup_24c"
 samples = ["prediction_%08i"%i for i in range(500)]
 
 def compute_scores(iterations):
@@ -108,6 +109,9 @@ def compute_scores(iterations):
 		print ("std: ", std)
 		print ("upper_std: ", upper_std)
 		print ("lower_std: ", lower_std)
+
+	with open("ari/24c.txt", "wb") as fp:   #Pickling
+		pickle.dump(aris, fp)
 	print("Score calculation finished")
 
 def __crop_center(img, crop):
