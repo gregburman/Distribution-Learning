@@ -21,7 +21,8 @@ logging.basicConfig(level=logging.INFO)
 setup_name = sys.argv[1]
 
 data_dir = "../snapshots/prob_unet/" + setup_name
-samples = ["prediction_%08i"%i for i in range(500)]
+samples = ["variation_%08i"%i for i in range(10)]
+# samples = ["prediction_00000249"]
 
 def compute_scores(iterations):
 
@@ -56,31 +57,31 @@ def compute_scores(iterations):
 
 	pipeline = tuple(
 		Hdf5Source(
-			os.path.join(data_dir, sample + '.hdf'),
-			datasets = dataset_names,
-			array_specs = array_specs
-		) +
-		Pad(gt_affs_key, None) +
-		Pad(pred_affinities_key, None)
-		# Pad(merged_labels_key[i], None) for i in range(num_merges) # don't know why this doesn't work
-		for sample in samples
+            os.path.join(data_dir, sample + '.hdf'),
+            datasets = dataset_names,
+            array_specs = array_specs
+        ) +
+        Pad(gt_affs_key, None) +
+        Pad(pred_affinities_key, None)
+        # Pad(merged_labels_key[i], None) for i in range(num_merges) # don't know why this doesn't work
+        for sample in samples
 	)
 
 	pipeline += SequentialProvider()
 
-	# pipeline += Snapshot(
-	# 		dataset_names={
-	# 			gt_affs_key: 'volumes/gt_affs',
-	# 			pred_affinities_key: 'volumes/pred_affs',
-	# 			# sample_z_key: 'volumes/sample_z',
-	# 		},
-	# 		output_filename='test_scores.hdf',
-	# 		every=1,
-	# 		dataset_dtypes={
-	# 			gt_affs_key: np.float32,
-	# 			pred_affinities_key: np.float32,
-	# 			sample_z_key: np.float32,
-	# 		})
+	pipeline += Snapshot(
+			dataset_names={
+				gt_affs_key: 'volumes/gt_affs',
+				# pred_affinities_key: 'volumes/pred_affs',
+				# sample_z_key: 'volumes/sample_z',
+			},
+			output_filename='test_scores.hdf',
+			every=1,
+			dataset_dtypes={
+				gt_affs_key: np.float32,
+				# pred_affinities_key: np.float32,
+				# sample_z_key: np.float32,
+			})
 
 
 
@@ -95,6 +96,7 @@ def compute_scores(iterations):
 			pred_affs = threshold(__crop_center(np.array(req[pred_affinities_key].data), (44,44,44)))
 
 			aris.append(adjusted_rand_score(gt_affs.flatten(), pred_affs.flatten()))
+			print ("ari: ", aris[i])
 
 		# print ("aris: ", aris)
 		aris = np.array(aris)
@@ -112,11 +114,7 @@ def compute_scores(iterations):
 		print ("upper_std: ", upper_std)
 		print ("lower_std: ", lower_std)
 
-<<<<<<< HEAD
-	with open("ari/24b.txt", "wb") as fp:   #Pickling
-=======
 	with open("ari/" + setup_name + ".txt", "wb") as fp:   #Pickling
->>>>>>> 4d1c68aa3f1826b98301d57f588e9495d25c2d68
 		pickle.dump(aris, fp)
 	print("Score calculation finished")
 
@@ -135,7 +133,5 @@ def __crop_center(img, crop):
 def threshold(img):
 	return np.where(img > 0.5, 1, 0)
 
-
-
 if __name__ == "__main__":
-	compute_scores(500)
+	compute_scores(10)

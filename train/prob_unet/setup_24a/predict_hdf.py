@@ -21,7 +21,8 @@ setup_name = sys.argv[1]
 setup_dir = 'train/prob_unet/' + setup_name + '/'
 
 data_dir = "data/datasets/gt_test"
-samples = ["batch_%08i"%i for i in range(500)]
+# samples = ["batch_%08i"%i for i in range(500)]
+samples = ["batch_00000249"]
 
 with open(setup_dir + 'predict_config.json', 'r') as f:
 	config = json.load(f)
@@ -89,7 +90,7 @@ def predict(checkpoint, iterations):
 		# Pad(raw_key, size=None) +
 		# Crop(raw_key, read_roi) +
 		#Normalize(raw_key) +
-		SequentialProvider() + 
+		# SequentialProvider() + 
 
 		AddAffinities(
 			affinity_neighborhood=neighborhood,
@@ -114,9 +115,9 @@ def predict(checkpoint, iterations):
 			labels=labels_key,
 			affinities=gt_affs_key) + 
 
-		PreCache(
-			cache_size=32,
-			num_workers=8) +
+		# PreCache(
+		# 	cache_size=32,
+		# 	num_workers=8) +
 
 		IntensityScaleShift(raw_key, 2,-1) +
 		Predict(
@@ -149,7 +150,7 @@ def predict(checkpoint, iterations):
 				# pred_logits_key: 'volumes/pred_logits',
 				# sample_out_key: 'volumes/sample_out'
 			},
-			output_filename='prob_unet/' + setup_name + '/prediction_{id}.hdf',
+			output_filename='prob_unet/' + setup_name + '/variation_{id}.hdf',
 			every=1,
 			dataset_dtypes={
 				labels_key: np.uint16,
