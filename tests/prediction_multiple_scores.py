@@ -15,16 +15,18 @@ import matplotlib.pyplot as plt
 from nodes import SequentialProvider
 
 from sklearn.metrics.cluster import adjusted_rand_score
+from sklearn.metrics import adjusted_mutual_info_score
 
 logging.basicConfig(level=logging.INFO)
 
 setup_name = sys.argv[1]
 
 data_dir = "../snapshots/prob_unet/" + setup_name
-samples = ["prediction_%08i"%i for i in range(500)]
+samples = ["prediction_%08i_A"%i for i in range(500)]
 
-def compute_scores(iterations):
+def compute_scores(d, iterations):
 
+	samples = ["prediction_%08i_A"%d, "prediction_%08i_B"%d, "prediction_%08i_C"%d, "prediction_%08i_D"%d]
 	labels_key = ArrayKey('LABELS')
 	gt_affs_key = ArrayKey('GT_AFFINITIES')
 	pred_affinities_key = ArrayKey('PREDICTED_AFFS')
@@ -34,9 +36,6 @@ def compute_scores(iterations):
 	input_shape = Coordinate((132, 132, 132)) * voxel_size
 	output_shape = Coordinate((44, 44, 44)) * voxel_size
 	sample_shape = Coordinate((1, 1, 6)) * voxel_size
-
-	print ("input_size: ", input_shape)
-	print ("output_size: ", output_shape)
 
 	request = BatchRequest()
 	# request.add(labels_key, output_shape)
@@ -84,37 +83,44 @@ def compute_scores(iterations):
 
 
 
-	print("Calculating Scores...")
+	# print("Calculating Scores...")
 	with build(pipeline) as p:
 		aris = []
+		pred_affs = []
 		for i in range(iterations):
-			if i % 10 == 0:
-				print("iteration: ", i)
 			req = p.request_batch(request)
-			gt_affs = np.array(req[gt_affs_key].data)
-			pred_affs = threshold(__crop_center(np.array(req[pred_affinities_key].data), (44,44,44)))
 
-			aris.append(adjusted_rand_score(gt_affs.flatten(), pred_affs.flatten()))
+			if i == 0:
+				gt_affs = np.array(req[gt_affs_key].data)
+			pred_affs.append(threshold(__crop_center(np.array(req[pred_affinities_key].data), (44, 44, 44))))
 
-		# print ("aris: ", aris)
-		aris = np.array(aris)
-		maximum = np.max(aris)
+		# print(np.sum(gt_affs))
+		# print(np.sum(pred_affs[0]))
+		# print(np.sum(pred_affs[1]))
+		ari_A = adjusted_rand_score(gt_affs.flatten(), pred_affs[0].flatten())
+		ari_B = adjusted_rand_score(gt_affs.flatten(), pred_affs[1].flatten())
+		ari_C = adjusted_rand_score(gt_affs.flatten(), pred_affs[2].flatten())
+		ari_D = adjusted_rand_score(gt_affs.flatten(), pred_affs[3].flatten())
+		ari_YS = (ari_A + ari_B + ari_C + ari_D)/4
+		d_YS = 1 - ari_YS
+		# print("gt_ari_avg: ", ari_YS)
 
-		minimum = np.min(aris)
-		std = np.std(aris)
-		mean = np.mean(aris)
-		upper_std = mean + std
-		lower_std = mean - std
-		print ("maximum: ", maximum)
-		print ("minimum: ", minimum)
-		print ("mean: ", mean)
-		print ("std: ", std)
-		print ("upper_std: ", upper_std)
-		print ("lower_std: ", lower_std)
+		ari_AB = adjusted_rand_score(pred_affs[0].flatten(), pred_affs[1].flatten())
+		ari_AC = adjusted_rand_score(pred_affs[0].flatten(), pred_affs[2].flatten())
+		ari_AD = adjusted_rand_score(pred_affs[0].flatten(), pred_affs[3].flatten())
+		ari_BC = adjusted_rand_score(pred_affs[1].flatten(), pred_affs[2].flatten())
+		ari_BD = adjusted_rand_score(pred_affs[1].flatten(), pred_affs[3].flatten())
+		ari_CD = adjusted_rand_score(pred_affs[2].flatten(), pred_affs[3].flatten())
+		ari_SS = (ari_AB + ari_AC + ari_AD + ari_BC + ari_BD + ari_CD)/6
+		d_SS = 1 - ari_SS
+		# print("pred_ari_avg: ", ari_SS)
 
-	with open("ari/" + setup_name + ".txt", "wb") as fp:   #Pickling
-		pickle.dump(aris, fp)
-	print("Score calculation finished")
+		# print("GED: ", 2*d_YS - d_SS)
+		return (ari_YS, d_YS, ari_SS, d_SS)
+
+	# with open("ari/" + setup_name + ".txt", "wb") as fp:   #Pickling
+	# 	pickle.dump(aris, fp)
+	# print("Score calculation finished")
 
 def __crop_center(img, crop):
 	z, y,x = img[0].shape
@@ -131,5 +137,33 @@ def __crop_center(img, crop):
 def threshold(img):
 	return np.where(img > 0.5, 1, 0)
 
+# def variation_of_information(X, Y):
+# 	n = float(sum([len(x) for x in X]))
+# 	sigma = 0.0
+# 	for x in X:
+# 		p = len(x) / n
+# 		for y in Y:
+# 			q = len(y) / n
+# 			r = len(set(x) & set(y)) / n
+# 			if r > 0.0:
+# 				sigma += r * (log(r / p, 2) + log(r / q, 2))
+# 		return abs(sigma)
+
 if __name__ == "__main__":
-	compute_scores(500)
+	ari_YS = []
+	d_YS = []
+	ari_SS = []
+	d_SS = []
+	for i in range(200):
+		if i % 10 == 0:
+			print('iteration: ', i)
+		results = compute_scores(i, 4)
+		ari_YS.append(results[0])
+		d_YS.append(results[1])
+		ari_SS.append(results[2])
+		d_SS.append(results[3])
+
+	data = {"ari_YS": ari_YS, "d_YS": d_YS, "ari_SS": ari_SS, "d_SS": d_SS}
+	with open("results/" + setup_name + ".txt", "wb") as fp:   #Pickling
+		pickle.dump(data, fp)
+	print("Score calculation finished")
