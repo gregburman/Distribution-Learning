@@ -22,7 +22,6 @@ logging.basicConfig(level=logging.INFO)
 setup_name = sys.argv[1]
 
 data_dir = "../snapshots/prob_unet/" + setup_name
-samples = ["prediction_%08i_A"%i for i in range(500)]
 
 def compute_scores(d, iterations):
 
@@ -113,10 +112,11 @@ def compute_scores(d, iterations):
 		ari_CD = adjusted_rand_score(pred_affs[2].flatten(), pred_affs[3].flatten())
 		ari_SS = (ari_AB + ari_AC + ari_AD + ari_BC + ari_BD + ari_CD)/6
 		d_SS = 1 - ari_SS
+		GED = 2*d_YS - d_SS
 		# print("pred_ari_avg: ", ari_SS)
 
 		# print("GED: ", 2*d_YS - d_SS)
-		return (ari_YS, d_YS, ari_SS, d_SS)
+		return (ari_YS, d_SS, GED)
 
 	# with open("ari/" + setup_name + ".txt", "wb") as fp:   #Pickling
 	# 	pickle.dump(aris, fp)
@@ -151,19 +151,17 @@ def threshold(img):
 
 if __name__ == "__main__":
 	ari_YS = []
-	d_YS = []
-	ari_SS = []
 	d_SS = []
+	GED = []
 	for i in range(200):
 		if i % 10 == 0:
 			print('iteration: ', i)
 		results = compute_scores(i, 4)
 		ari_YS.append(results[0])
-		d_YS.append(results[1])
-		ari_SS.append(results[2])
-		d_SS.append(results[3])
+		d_SS.append(results[1])
+		GED.append(results[2])
 
-	data = {"ari_YS": ari_YS, "d_YS": d_YS, "ari_SS": ari_SS, "d_SS": d_SS}
+	data = {"ari_YS": ari_YS, "d_SS": d_SS, "GED": GED}
 	with open("results/" + setup_name + ".txt", "wb") as fp:   #Pickling
 		pickle.dump(data, fp)
 	print("Score calculation finished")

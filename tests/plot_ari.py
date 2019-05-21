@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 # rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 ## for Palatino and other serif fonts use:
-rc('font',**{'family':'serif','serif':['Palatino']})
-rc('text', usetex=True)
+rc('font',**{'size':14})
+
+# rc('text', usetex=True)
 
 with open("ari/24a.txt", "rb") as fp:   # Unpickling
 	s24a = pickle.load(fp)
@@ -37,9 +38,9 @@ fig1, ax1 = plt.subplots()
 
 my_xticks = ['MSE','SCE','MALIS']
 
-plt.xlabel("Loss Function")
+# plt.xlabel("Loss Function")
 plt.ylabel("ARI")
-ax1.boxplot(aris)
+ax1.boxplot(aris, 1, '')
 plt.xticks([1, 2, 3], ['MSE','SCE','MALIS'])
 
 plt.show()
