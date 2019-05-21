@@ -49,7 +49,7 @@ def create_network(input_shape, setup_dir):
 			fmaps_in = raw_batched,
 			affmaps_in = None,
 			num_layers = 3,
-			latent_dims = 12,
+			latent_dims = 6,
 			base_channels = 12,
 			channel_inc_factor = 3,
 			downsample_factors = [[2,2,2], [2,2,2], [2,2,2]],
@@ -64,7 +64,7 @@ def create_network(input_shape, setup_dir):
 		print ("")
 
 	sample_z = prior.sample()
-	sample_z_batched = tf.reshape(sample_z, (1, 1, 12))
+	sample_z_batched = tf.reshape(sample_z, (1, 1, 6))
 
 	with tf.variable_scope("f_comb") as vs3:
 		f_comb = FComb(
@@ -81,7 +81,7 @@ def create_network(input_shape, setup_dir):
 		broadcast_sample = f_comb.broadcast_sample
 		sample_out = f_comb.sample_out
 		print("sample_out_name: ", f_comb.get_fmaps().name)
-		sample_out_batched = tf.reshape(sample_out, (1, 1, 12)) 
+		sample_out_batched = tf.reshape(sample_out, (1, 1, 6)) 
 		# print("sample_out: ", sample_out_batched.shape)
 
 	with tf.variable_scope("affs") as vs4:

@@ -56,14 +56,14 @@ def compute_scores(iterations):
 
 	pipeline = tuple(
 		Hdf5Source(
-            os.path.join(data_dir, sample + '.hdf'),
-            datasets = dataset_names,
-            array_specs = array_specs
-        ) +
-        Pad(gt_affs_key, None) +
-        Pad(pred_affinities_key, None)
-        # Pad(merged_labels_key[i], None) for i in range(num_merges) # don't know why this doesn't work
-        for sample in samples
+			os.path.join(data_dir, sample + '.hdf'),
+			datasets = dataset_names,
+			array_specs = array_specs
+		) +
+		Pad(gt_affs_key, None) +
+		Pad(pred_affinities_key, None)
+		# Pad(merged_labels_key[i], None) for i in range(num_merges) # don't know why this doesn't work
+		for sample in samples
 	)
 
 	pipeline += SequentialProvider()
@@ -112,7 +112,11 @@ def compute_scores(iterations):
 		print ("upper_std: ", upper_std)
 		print ("lower_std: ", lower_std)
 
+<<<<<<< HEAD
+	with open("ari/24b.txt", "wb") as fp:   #Pickling
+=======
 	with open("ari/" + setup_name + ".txt", "wb") as fp:   #Pickling
+>>>>>>> 4d1c68aa3f1826b98301d57f588e9495d25c2d68
 		pickle.dump(aris, fp)
 	print("Score calculation finished")
 
@@ -130,6 +134,8 @@ def __crop_center(img, crop):
 
 def threshold(img):
 	return np.where(img > 0.5, 1, 0)
+
+
 
 if __name__ == "__main__":
 	compute_scores(500)
